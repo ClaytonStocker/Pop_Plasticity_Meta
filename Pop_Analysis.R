@@ -6,16 +6,16 @@ pacman::p_load(tidyverse, readxl, gtsummary, dplyr,
                flextable, phytools, MCMCglmm, metaAidR, orchaRd, 
                robumeta, ggpmisc, ggridges, ggbeeswarm, gridExtra)
 
-source("./4_Laboratory_Plasticity/3_Data_Analysis/1_R_code/func.R")
+source("./func.R")
 
 # Importing Data Set
-data <- read.csv("./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/data/Final_Data.csv")
+data <- read.csv("./Final_Data.csv")
 data$obs <- 1:nrow(data)
 data$Scientific_Name <- sub(" ", "_", data$Scientific_Name)
 data$phylo <- data$Scientific_Name
 
 # Phylogenetic covariance matrix
-tree <- ape::read.tree("./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/phylogeny/tree")
+tree <- ape::read.tree("./tree")
 phy <- ape::compute.brlen(tree, method = "Grafen", power = 1)
 A <- ape::vcv.phylo(phy)
 row.names(A) <- colnames(A) <- row.names(A)
@@ -24,7 +24,7 @@ A_cor <- ape::vcv.phylo(phy, corr = TRUE)
 ##### Overall Model #####
 priors <-  prior(student_t(3, 0, 20), class = "sd")
 
-system.time(  # 20ish minutes
+system.time(
   overall <- brms::brm(Effect_Size_Adjusted | se(sqrt(Variance_Adjusted)) 
                        ~ 1 + (1|gr(phylo, cov = A)) + (1|Study_ID) + (1|Measurement) + (1|obs),
                        data = data,
@@ -37,8 +37,8 @@ system.time(  # 20ish minutes
                        thin = 5,
                        prior = priors,
                        control = list(adapt_delta = 0.99, max_treedepth = 15),
-                       file = "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/overall_model",
-                       file_refit = "on_change"))
+                       file = "./overall_model",
+                       file_refit = "always"))
 
 ####-- Bayesian Model/Data Output --#####
 
@@ -80,7 +80,7 @@ Plasticity_Study_Count <- data %>% select("Study_ID", "Plasticity_Category") %>%
                           select("Plasticity_Category") %>% table() %>% data.frame()
 rownames(Plasticity_Study_Count) <- Plasticity_Study_Count$Plasticity_Category
 
-system.time(  # 19ish minutes
+system.time(
   overall_plastic <- brms::brm(Effect_Size_Adjusted | se(sqrt(Variance_Adjusted)) 
                                ~ Plasticity_Category + (1|gr(phylo, cov = A)) + (1|Study_ID) + (1|Measurement) + (1|gr(obs, by = Plasticity_Category, cor = FALSE)),
                                data = data,
@@ -93,8 +93,8 @@ system.time(  # 19ish minutes
                                thin = 5,
                                prior = priors,
                                control = list(adapt_delta = 0.99, max_treedepth = 15),
-                               file = "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/overall_plastic_model",
-                               file_refit = "on_change"))
+                               file = "./overall_plastic_model",
+                               file_refit = "always"))
 
 ####-- Bayesian Model/Data Output --####
 
@@ -391,7 +391,7 @@ Trait_Study_Count <- data %>% select("Study_ID", "Category") %>%
                      select("Category") %>% table() %>% data.frame()
 rownames(Trait_Study_Count) <- Trait_Study_Count$Category
 
-system.time(  # 20ish minutes
+system.time(
   overall_trait <- brms::brm(Effect_Size_Adjusted | se(sqrt(Variance_Adjusted)) 
                              ~ Category + (1|gr(phylo, cov = A)) + (1|Study_ID) + (1|Measurement) + (1|gr(obs, by = Category, cor = FALSE)),
                              data = data,
@@ -404,8 +404,8 @@ system.time(  # 20ish minutes
                              thin = 5,
                              prior = priors,
                              control = list(adapt_delta = 0.99, max_treedepth = 15),
-                             file = "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/overall_trait_model",
-                             file_refit = "on_change"))
+                             file = "./overall_trait_model",
+                             file_refit = "always"))
 
 ####-- Bayesian Model/Data Output --####
 
@@ -804,7 +804,7 @@ Taxonomy_A <- as.data.frame(A)
 Taxonomy_A <- Taxonomy_A[c(Taxonomy_Species$phylo), c(Taxonomy_Species$phylo)]
 Taxonomy_A <- as.matrix(Taxonomy_A)
 
-system.time(  # Still getting minimum divergent transitions
+system.time(
   overall_taxonomy <- brms::brm(Effect_Size_Adjusted | se(sqrt(Variance_Adjusted)) 
                                 ~ Class + (1|gr(phylo, cov = A)) + (1|Study_ID) + (1|Measurement) + (1|gr(obs, by = Class, cor = FALSE)),
                                 data = Taxonomy_Data,
@@ -817,8 +817,8 @@ system.time(  # Still getting minimum divergent transitions
                                 thin = 5,
                                 prior = priors,
                                 control = list(adapt_delta = 0.99, max_treedepth = 15),
-                                file = "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/overall_taxonomy_model",
-                                file_refit = "on_change"))
+                                file = "./overall_taxonomy_model",
+                                file_refit = "always"))
 
 ####-- Bayesian Model/Data Output --####
 
@@ -1173,7 +1173,7 @@ Treatment_A <- as.data.frame(A)
 Treatment_A <- Treatment_A[c(Treatment_Species$phylo), c(Treatment_Species$phylo)]
 Treatment_A <- as.matrix(Treatment_A)
 
-system.time(  # 20ish minutes
+system.time(
   overall_treatment <- brms::brm(Effect_Size_Adjusted | se(sqrt(Variance_Adjusted)) 
                              ~ Type + (1|gr(phylo, cov = A)) + (1|Study_ID) + (1|Measurement) + (1|gr(obs, by = Type, cor = FALSE)),
                              data = Treatment_Data,
@@ -1186,8 +1186,8 @@ system.time(  # 20ish minutes
                              thin = 5,
                              prior = priors,
                              control = list(adapt_delta = 0.99, max_treedepth = 15),
-                             file = "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/overall_treatment_model",
-                             file_refit = "on_change"))
+                             file = "./overall_treatment_model",
+                             file_refit = "always"))
 
 ####-- Bayesian Model/Data Output --####
 
@@ -1542,7 +1542,7 @@ Terrestrial_A <- as.data.frame(A)
 Terrestrial_A <- Terrestrial_A[c(Terrestrial_Species$phylo), c(Terrestrial_Species$phylo)]
 Terrestrial_A <- as.matrix(Terrestrial_A)
 
-system.time(  # 20ish minutes
+system.time(
   terrestrial <- brms::brm(Effect_Size_Adjusted | se(sqrt(Variance_Adjusted)) 
                            ~ 1 + (1|gr(phylo, cov = A)) + (1|Study_ID) + (1|Measurement) + (1|obs),
                            data = Terrestrial_Data,
@@ -1555,8 +1555,8 @@ system.time(  # 20ish minutes
                            thin = 5,
                            prior = priors,
                            control = list(adapt_delta = 0.99, max_treedepth = 15),
-                           file = "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/terrestrial_model",
-                           file_refit = "on_change"))
+                           file = "./terrestrial_model",
+                           file_refit = "always"))
 
 ####-- Bayesian Model/Data Output --#####
 
@@ -1608,7 +1608,7 @@ Terrestrial_Plasticity_A <- Terrestrial_Plasticity_A[c(Terrestrial_Plasticity_Sp
 Terrestrial_Plasticity_A <- as.matrix(Terrestrial_Plasticity_A)
 
 
-system.time(  # 35ish minutes
+system.time(
   terrestrial_plastic <- brms::brm(Effect_Size_Adjusted | se(sqrt(Variance_Adjusted)) 
                                    ~ Plasticity_Category + (1|gr(phylo, cov = A)) + (1|Study_ID) + (1|Measurement) + (1|gr(obs, by = Plasticity_Category, cor = FALSE)),
                                    data = Terrestrial_Plasticity_Data,
@@ -1621,8 +1621,8 @@ system.time(  # 35ish minutes
                                    thin = 5,
                                    prior = priors,
                                    control = list(adapt_delta = 0.99, max_treedepth = 15),
-                                   file = "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/terrestrial_plastic_model",
-                                   file_refit = "on_change"))
+                                   file = "./terrestrial_plastic_model",
+                                   file_refit = "always"))
 
 ####-- Bayesian Model/Data Output --####
 
@@ -1908,7 +1908,7 @@ Terrestrial_Trait_A <- as.data.frame(A)
 Terrestrial_Trait_A <- Terrestrial_Trait_A[c(Terrestrial_Trait_Species$phylo), c(Terrestrial_Trait_Species$phylo)]
 Terrestrial_Trait_A <- as.matrix(Terrestrial_Trait_A)
 
-system.time(  # 20ish minutes
+system.time(
   terrestrial_trait <- brms::brm(Effect_Size_Adjusted | se(sqrt(Variance_Adjusted)) 
                                  ~ Category + (1|gr(phylo, cov = A)) + (1|Study_ID) + (1|Measurement) + (1|gr(obs, by = Category, cor = FALSE)),
                                  data = Terrestrial_Trait_Data,
@@ -1921,8 +1921,8 @@ system.time(  # 20ish minutes
                                  thin = 5,
                                  prior = priors,
                                  control = list(adapt_delta = 0.99, max_treedepth = 15),
-                                 file = "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/terrestrial_trait_model",
-                                 file_refit = "on_change"))
+                                 file = "./terrestrial_trait_model",
+                                 file_refit = "always"))
 
 ####-- Bayesian Model/Data Output --####
 
@@ -2277,7 +2277,7 @@ Terrestrial_Treatment_A <- as.data.frame(A)
 Terrestrial_Treatment_A <- Terrestrial_Treatment_A[c(Terrestrial_Treatment_Species$phylo), c(Terrestrial_Treatment_Species$phylo)]
 Terrestrial_Treatment_A <- as.matrix(Terrestrial_Treatment_A)
 
-system.time(  # 15ish minutes
+system.time(
   terrestrial_treatment <- brms::brm(Effect_Size_Adjusted | se(sqrt(Variance_Adjusted)) 
                                      ~ Type + (1|gr(phylo, cov = A)) + (1|Study_ID) + (1|Measurement) + (1|gr(obs, by = Type, cor = FALSE)),
                                      data = Terrestrial_Treatment_Data,
@@ -2290,8 +2290,8 @@ system.time(  # 15ish minutes
                                      thin = 5,
                                      prior = priors,
                                      control = list(adapt_delta = 0.99, max_treedepth = 15),
-                                     file = "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/terrestrial_treatment_model",
-                                     file_refit = "on_change"))
+                                     file = "./terrestrial_treatment_model",
+                                     file_refit = "always"))
 
 ####-- Bayesian Model/Data Output --####
 
@@ -2560,7 +2560,7 @@ Aquatic_A <- as.data.frame(A)
 Aquatic_A <- Aquatic_A[c(Aquatic_Species$phylo), c(Aquatic_Species$phylo)]
 Aquatic_A <- as.matrix(Aquatic_A)
 
-system.time(  # 100ish minutes
+system.time(
   aquatic <- brms::brm(Effect_Size_Adjusted | se(sqrt(Variance_Adjusted)) 
                        ~ 1 + (1|gr(phylo, cov = A)) + (1|Study_ID) + (1|Measurement) + (1|obs),
                        data = Aquatic_Data,
@@ -2573,8 +2573,8 @@ system.time(  # 100ish minutes
                        thin = 5,
                        prior = priors,
                        control = list(adapt_delta = 0.99, max_treedepth = 15),
-                       file = "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/aquatic_model",
-                       file_refit = "on_change"))
+                       file = "./aquatic_model",
+                       file_refit = "always"))
 
 ####-- Bayesian Model/Data Output --#####
 
@@ -2616,7 +2616,7 @@ Aquatic_Plasticity_Study_Count <- Aquatic_Data %>% select("Study_ID", "Plasticit
                                   select("Plasticity_Category") %>% table() %>% data.frame()
 rownames(Aquatic_Plasticity_Study_Count) <- Aquatic_Plasticity_Study_Count$Plasticity_Category
 
-system.time(  # 19ish minutes
+system.time(
   aquatic_plastic <- brms::brm(Effect_Size_Adjusted | se(sqrt(Variance_Adjusted)) 
                                ~ Plasticity_Category + (1|gr(phylo, cov = A)) + (1|Study_ID) + (1|Measurement) + (1|gr(obs, by = Plasticity_Category, cor = FALSE)),
                                data = Aquatic_Data,
@@ -2629,8 +2629,8 @@ system.time(  # 19ish minutes
                                thin = 5,
                                prior = priors,
                                control = list(adapt_delta = 0.99, max_treedepth = 15),
-                               file = "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/aquatic_plastic_model",
-                               file_refit = "on_change"))
+                               file = "./aquatic_plastic_model",
+                               file_refit = "always"))
 
 ####-- Bayesian Model/Data Output --####
 
@@ -2942,7 +2942,7 @@ Aquatic_Trait_A <- as.data.frame(A)
 Aquatic_Trait_A <- Aquatic_Trait_A[c(Aquatic_Trait_Species$phylo), c(Aquatic_Trait_Species$phylo)]
 Aquatic_Trait_A <- as.matrix(Aquatic_Trait_A)
 
-system.time(  # 20ish minutes
+system.time(
   aquatic_trait <- brms::brm(Effect_Size_Adjusted | se(sqrt(Variance_Adjusted)) 
                              ~ Category + (1|gr(phylo, cov = A)) + (1|Study_ID) + (1|Measurement) + (1|gr(obs, by = Category, cor = FALSE)),
                              data = Aquatic_Trait_Data,
@@ -2955,8 +2955,8 @@ system.time(  # 20ish minutes
                              thin = 5,
                              prior = priors,
                              control = list(adapt_delta = 0.99, max_treedepth = 15),
-                             file = "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/aquatic_trait_model",
-                             file_refit = "on_change"))
+                             file = "./aquatic_trait_model",
+                             file_refit = "always"))
 
 ####-- Bayesian Model/Data Output --####
 
@@ -3317,7 +3317,7 @@ Aquatic_Treatment_A <- as.data.frame(A)
 Aquatic_Treatment_A <- Aquatic_Treatment_A[c(Aquatic_Treatment_Species$phylo), c(Aquatic_Treatment_Species$phylo)]
 Aquatic_Treatment_A <- as.matrix(Aquatic_Treatment_A)
 
-system.time(  # 15ish minutes
+system.time(
   aquatic_treatment <- brms::brm(Effect_Size_Adjusted | se(sqrt(Variance_Adjusted)) 
                                  ~ Type + (1|gr(phylo, cov = A)) + (1|Study_ID) + (1|Measurement) + (1|gr(obs, by = Type, cor = FALSE)),
                                  data = Aquatic_Treatment_Data,
@@ -3330,8 +3330,8 @@ system.time(  # 15ish minutes
                                  thin = 5,
                                  prior = priors,
                                  control = list(adapt_delta = 0.99, max_treedepth = 15),
-                                 file = "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/aquatic_treatment_model",
-                                 file_refit = "on_change"))
+                                 file = "./aquatic_treatment_model",
+                                 file_refit = "always"))
 
 ####-- Bayesian Model/Data Output --####
 
@@ -3671,7 +3671,7 @@ Temperature_A <- as.data.frame(A)
 Temperature_A <- Temperature_A[c(Temperature_Species$phylo), c(Temperature_Species$phylo)]
 Temperature_A <- as.matrix(Temperature_A)
 
-system.time(  # 2ish minutes
+system.time(
   temperature <- brms::brm(Effect_Size_Type_Adjusted | se(sqrt(Variance_Type_Adjusted)) 
                        ~ 1 + (1|gr(phylo, cov = A)) + (1|Study_ID) + (1|obs),
                        data = Temperature_Data,
@@ -3684,8 +3684,8 @@ system.time(  # 2ish minutes
                        thin = 5,
                        prior = priors,
                        control = list(adapt_delta = 0.99, max_treedepth = 15),
-                       file = "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/temperature_model",
-                       file_refit = "on_change"))
+                       file = "./temperature_model",
+                       file_refit = "always"))
 
 ####-- Bayesian Model/Data Output --#####
 
@@ -3726,7 +3726,7 @@ Temperature_Plasticity_Study_Count <- Temperature_Data %>% select("Study_ID", "P
                                       select("Plasticity_Category") %>% table() %>% data.frame()
 rownames(Temperature_Plasticity_Study_Count) <- Temperature_Plasticity_Study_Count$Plasticity_Category
 
-system.time(  # 2ish minutes
+system.time(
   temperature_plastic <- brms::brm(Effect_Size_Type_Adjusted | se(sqrt(Variance_Type_Adjusted)) 
                                    ~ Plasticity_Category + (1|gr(phylo, cov = A)) + (1|Study_ID) + (1|gr(obs, by = Plasticity_Category, cor = FALSE)),
                                    data = Temperature_Data,
@@ -3739,8 +3739,8 @@ system.time(  # 2ish minutes
                                    thin = 5,
                                    prior = priors,
                                    control = list(adapt_delta = 0.99, max_treedepth = 15),
-                                   file = "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/temperature_plastic_model",
-                                   file_refit = "on_change"))
+                                   file = "./temperature_plastic_model",
+                                   file_refit = "always"))
 
 ####-- Bayesian Model/Data Output --####
 
@@ -4048,7 +4048,7 @@ Temperature_Trait_A <- as.data.frame(A)
 Temperature_Trait_A <- Temperature_Trait_A[c(Temperature_Trait_Species$phylo), c(Temperature_Trait_Species$phylo)]
 Temperature_Trait_A <- as.matrix(Temperature_Trait_A)
 
-system.time(  # 2ish minutes
+system.time(
   temperature_trait <- brms::brm(Effect_Size_Type_Adjusted | se(sqrt(Variance_Type_Adjusted)) 
                                  ~ Category + (1|gr(phylo, cov = A)) + (1|Study_ID) + (1|gr(obs, by = Category, cor = FALSE)),
                                  data = Temperature_Trait_Data,
@@ -4061,8 +4061,8 @@ system.time(  # 2ish minutes
                                  thin = 5,
                                  prior = priors,
                                  control = list(adapt_delta = 0.99, max_treedepth = 15),
-                                 file = "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/temperature_trait_model",
-                                 file_refit = "on_change"))
+                                 file = "./temperature_trait_model",
+                                 file_refit = "always"))
 
 ####-- Bayesian Model/Data Output --####
 
@@ -4395,7 +4395,7 @@ Temperature_Taxonomy_A <- as.data.frame(A)
 Temperature_Taxonomy_A <- Temperature_Taxonomy_A[c(Temperature_Taxonomy_Species$phylo), c(Temperature_Taxonomy_Species$phylo)]
 Temperature_Taxonomy_A <- as.matrix(Temperature_Taxonomy_A)
 
-system.time(  # 3ish minutes
+system.time(
   temperature_taxonomy <- brms::brm(Effect_Size_Type_Adjusted | se(sqrt(Variance_Type_Adjusted)) 
                                     ~ Class + (1|gr(phylo, cov = A)) + (1|Study_ID) + (1|gr(obs, by = Class, cor = FALSE)),
                                     data = Temperature_Taxonomy_Data,
@@ -4408,8 +4408,8 @@ system.time(  # 3ish minutes
                                     thin = 5,
                                     prior = priors,
                                     control = list(adapt_delta = 0.99, max_treedepth = 15),
-                                    file = "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/temperature_taxonomy_model",
-                                    file_refit = "on_change"))
+                                    file = "./temperature_taxonomy_model",
+                                    file_refit = "always"))
 
 ####-- Bayesian Model/Data Output --####
 
@@ -4675,7 +4675,7 @@ Terrestrial_Temperature_A <- as.data.frame(A)
 Terrestrial_Temperature_A <- Terrestrial_Temperature_A[c(Terrestrial_Temperature_Species$phylo), c(Terrestrial_Temperature_Species$phylo)]
 Terrestrial_Temperature_A <- as.matrix(Terrestrial_Temperature_A)
 
-system.time(  # 2ish minutes
+system.time(
   terrestrial_temperature <- brms::brm(Effect_Size_Type_Adjusted | se(sqrt(Variance_Type_Adjusted)) 
                                        ~ 1 + (1|gr(phylo, cov = A)) + (1|Study_ID) + (1|obs),
                                        data = Terrestrial_Temperature_Data,
@@ -4688,8 +4688,8 @@ system.time(  # 2ish minutes
                                        thin = 5,
                                        prior = priors,
                                        control = list(adapt_delta = 0.99, max_treedepth = 15),
-                                       file = "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/terrestrial_temperature_model",
-                                       file_refit = "on_change"))
+                                       file = "./terrestrial_temperature_model",
+                                       file_refit = "always"))
 
 ####-- Bayesian Model/Data Output --#####
 
@@ -4740,7 +4740,7 @@ Terrestrial_Temperature_Plasticity_A <- Terrestrial_Temperature_Plasticity_A[c(T
 Terrestrial_Temperature_Plasticity_A <- as.matrix(Terrestrial_Temperature_Plasticity_A)
 
 
-system.time(  # still getting minimum divergent transitions
+system.time(
   terrestrial_temperature_plastic <- brms::brm(Effect_Size_Type_Adjusted | se(sqrt(Variance_Type_Adjusted)) 
                                                ~ Plasticity_Category + (1|gr(phylo, cov = A)) + (1|Study_ID) + (1|gr(obs, by = Plasticity_Category, cor = FALSE)),
                                                data = Terrestrial_Temperature_Plasticity_Data,
@@ -4753,8 +4753,8 @@ system.time(  # still getting minimum divergent transitions
                                                thin = 5,
                                                prior = priors,
                                                control = list(adapt_delta = 0.99, max_treedepth = 15),
-                                               file = "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/terrestrial_temperature_plastic_model",
-                                               file_refit = "on_change"))
+                                               file = "./terrestrial_temperature_plastic_model",
+                                               file_refit = "always"))
 
 ####-- Bayesian Model/Data Output --####
 
@@ -5040,7 +5040,7 @@ Terrestrial_Temperature_Trait_A <- as.data.frame(A)
 Terrestrial_Temperature_Trait_A <- Terrestrial_Temperature_Trait_A[c(Terrestrial_Temperature_Trait_Species$phylo), c(Terrestrial_Temperature_Trait_Species$phylo)]
 Terrestrial_Temperature_Trait_A <- as.matrix(Terrestrial_Temperature_Trait_A)
 
-system.time(  # still getting minimum divergent transitions
+system.time(
   terrestrial_temperature_trait <- brms::brm(Effect_Size_Type_Adjusted | se(sqrt(Variance_Type_Adjusted)) 
                                              ~ Category + (1|gr(phylo, cov = A)) + (1|Study_ID) + (1|gr(obs, by = Category, cor = FALSE)),
                                              data = Terrestrial_Temperature_Trait_Data,
@@ -5053,8 +5053,8 @@ system.time(  # still getting minimum divergent transitions
                                              thin = 5,
                                              prior = priors,
                                              control = list(adapt_delta = 0.99, max_treedepth = 15),
-                                             file = "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/terrestrial_temperature_trait_model",
-                                             file_refit = "on_change"))
+                                             file = "./terrestrial_temperature_trait_model",
+                                             file_refit = "always"))
 
 ####-- Bayesian Model/Data Output --####
 
@@ -5372,7 +5372,7 @@ Aquatic_Temperature_A <- as.data.frame(A)
 Aquatic_Temperature_A <- Aquatic_Temperature_A[c(Aquatic_Temperature_Species$phylo), c(Aquatic_Temperature_Species$phylo)]
 Aquatic_Temperature_A <- as.matrix(Aquatic_Temperature_A)
 
-system.time(  # 2ish minutes
+system.time(
   aquatic_temperature <- brms::brm(Effect_Size_Type_Adjusted | se(sqrt(Variance_Type_Adjusted)) 
                                    ~ 1 + (1|gr(phylo, cov = A)) + (1|Study_ID) + (1|obs),
                                    data = Aquatic_Temperature_Data,
@@ -5385,8 +5385,8 @@ system.time(  # 2ish minutes
                                    thin = 5,
                                    prior = priors,
                                    control = list(adapt_delta = 0.99, max_treedepth = 15),
-                                   file = "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/aquatic_temperature_model",
-                                   file_refit = "on_change"))
+                                   file = "./aquatic_temperature_model",
+                                   file_refit = "always"))
 
 ####-- Bayesian Model/Data Output --#####
 
@@ -5436,7 +5436,7 @@ Aquatic_Temperature_Plasticity_A <- Aquatic_Temperature_Plasticity_A[c(Aquatic_T
 Aquatic_Temperature_Plasticity_A <- as.matrix(Aquatic_Temperature_Plasticity_A)
 
 
-system.time(  # still getting minimum divergent transitions
+system.time(
   aquatic_temperature_plastic <- brms::brm(Effect_Size_Type_Adjusted | se(sqrt(Variance_Type_Adjusted)) 
                                            ~ 1 + (1|gr(phylo, cov = A)) + (1|Study_ID) + (1|obs),
                                            data = Aquatic_Temperature_Plasticity_Data,
@@ -5449,8 +5449,8 @@ system.time(  # still getting minimum divergent transitions
                                            thin = 5,
                                            prior = priors,
                                            control = list(adapt_delta = 0.99, max_treedepth = 15),
-                                           file = "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/aquatic_temperature_plastic_model",
-                                           file_refit = "on_change"))
+                                           file = "./aquatic_temperature_plastic_model",
+                                           file_refit = "always"))
 
 ####-- Bayesian Model/Data Output --####
 
@@ -5582,7 +5582,7 @@ Aquatic_Temperature_Trait_A <- as.data.frame(A)
 Aquatic_Temperature_Trait_A <- Aquatic_Temperature_Trait_A[c(Aquatic_Temperature_Trait_Species$phylo), c(Aquatic_Temperature_Trait_Species$phylo)]
 Aquatic_Temperature_Trait_A <- as.matrix(Aquatic_Temperature_Trait_A)
 
-system.time(  # 1ish minutes
+system.time(
   aquatic_temperature_trait <- brms::brm(Effect_Size_Type_Adjusted | se(sqrt(Variance_Type_Adjusted)) 
                                          ~ Category + (1|gr(phylo, cov = A)) + (1|Study_ID) + (1|gr(obs, by = Category, cor = FALSE)),
                                          data = Aquatic_Temperature_Trait_Data,
@@ -5595,8 +5595,8 @@ system.time(  # 1ish minutes
                                          thin = 5,
                                          prior = priors,
                                          control = list(adapt_delta = 0.99, max_treedepth = 15),
-                                         file = "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/aquatic_temperature_trait_model",
-                                         file_refit = "on_change"))
+                                         file = "./aquatic_temperature_trait_model",
+                                         file_refit = "always"))
 
 ####-- Bayesian Model/Data Output --####
 
@@ -5864,7 +5864,7 @@ Aquatic_Salinity_A <- as.data.frame(A)
 Aquatic_Salinity_A <- Aquatic_Salinity_A[c(Aquatic_Salinity_Species$phylo), c(Aquatic_Salinity_Species$phylo)]
 Aquatic_Salinity_A <- as.matrix(Aquatic_Salinity_A)
 
-system.time(  # 2ish minutes
+system.time(
   aquatic_salinity <- brms::brm(Effect_Size_Type_Adjusted | se(sqrt(Variance_Type_Adjusted)) 
                                 ~ 1 + (1|gr(phylo, cov = A)) + (1|Study_ID) + (1|obs),
                                 data = Aquatic_Salinity_Data,
@@ -5877,8 +5877,8 @@ system.time(  # 2ish minutes
                                 thin = 5,
                                 prior = priors,
                                 control = list(adapt_delta = 0.99, max_treedepth = 15),
-                                file = "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/aquatic_salinity_model",
-                                file_refit = "on_change"))
+                                file = "./aquatic_salinity_model",
+                                file_refit = "always"))
 
 ####-- Bayesian Model/Data Output --#####
 
@@ -5928,7 +5928,7 @@ Aquatic_Salinity_Plasticity_A <- Aquatic_Salinity_Plasticity_A[c(Aquatic_Salinit
 Aquatic_Salinity_Plasticity_A <- as.matrix(Aquatic_Salinity_Plasticity_A)
 
 
-system.time(  # still getting minimum divergent transitions
+system.time(
   aquatic_salinity_plastic <- brms::brm(Effect_Size_Type_Adjusted | se(sqrt(Variance_Type_Adjusted)) 
                                         ~ 1 + (1|gr(phylo, cov = A)) + (1|Study_ID) + (1|obs),
                                         data = Aquatic_Salinity_Plasticity_Data,
@@ -5941,8 +5941,8 @@ system.time(  # still getting minimum divergent transitions
                                         thin = 5,
                                         prior = priors,
                                         control = list(adapt_delta = 0.99, max_treedepth = 15),
-                                        file = "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/aquatic_salinity_plastic_model",
-                                        file_refit = "on_change"))
+                                        file = "./aquatic_salinity_plastic_model",
+                                        file_refit = "always"))
 
 ####-- Bayesian Model/Data Output --####
 
@@ -6068,7 +6068,7 @@ Aquatic_Salinity_Trait_A <- as.data.frame(A)
 Aquatic_Salinity_Trait_A <- Aquatic_Salinity_Trait_A[c(Aquatic_Salinity_Trait_Species$phylo), c(Aquatic_Salinity_Trait_Species$phylo)]
 Aquatic_Salinity_Trait_A <- as.matrix(Aquatic_Salinity_Trait_A)
 
-system.time(  # 1ish minutes
+system.time(
   aquatic_salinity_trait <- brms::brm(Effect_Size_Type_Adjusted | se(sqrt(Variance_Type_Adjusted)) 
                                       ~ 1 + (1|gr(phylo, cov = A)) + (1|Study_ID) + (1|obs),
                                       data = Aquatic_Salinity_Trait_Data,
@@ -6081,8 +6081,8 @@ system.time(  # 1ish minutes
                                       thin = 5,
                                       prior = priors,
                                       control = list(adapt_delta = 0.99, max_treedepth = 15),
-                                      file = "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/aquatic_salinity_trait_model",
-                                      file_refit = "on_change"))
+                                      file = "./aquatic_salinity_trait_model",
+                                      file_refit = "always"))
 
 ####-- Bayesian Model/Data Output --####
 
@@ -6542,7 +6542,7 @@ density_intercept_2 #(400x400)
 
 ##### Supplementary Material Table #####
 # Consistency Changes - Studies, Species and Effect Sizes Counts
-Pre_Data <- read.csv("./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/data/Pre_Data.csv")
+Pre_Data <- read.csv("./Pre_Data.csv")
 
 Measurement_Studies <- Pre_Data %>% select("Study_ID", "Measurement") %>% table() %>% data.frame() %>% 
                        filter(`Freq` != 0) %>% select("Measurement") %>% table() %>% data.frame()
@@ -6562,7 +6562,7 @@ Measurement_Final_Counts <- Measurement_Studies %>%
                             left_join(Measurement_Species, by = "Measurement") %>% 
                             left_join(Measurement_Effects, by = "Measurement")
 
-write.csv(Measurement_Final_Counts, file = "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/supplementary_material/Measurement_Final_Counts.csv", row.names = FALSE)
+write.csv(Measurement_Final_Counts, file = "./Measurement_Final_Counts.csv", row.names = FALSE)
 
 # Category - Studies, Species and Effect Sizes Counts
 Measurement_Category_Studies <- data %>% select("Study_ID", "Category") %>% table() %>% data.frame() %>% 
@@ -6583,7 +6583,7 @@ Measurement_Category_Final_Counts <- Measurement_Category_Studies %>%
                                      left_join(Measurement_Category_Species, by = "Category") %>% 
                                      left_join(Measurement_Category_Effects, by = "Category")
 
-write.csv(Measurement_Category_Final_Counts, file = "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/supplementary_material/Measurement_Category_Final_Counts.csv", row.names = FALSE)
+write.csv(Measurement_Category_Final_Counts, file = "./Measurement_Category_Final_Counts.csv", row.names = FALSE)
 
 # Measurements and their Categories
 Behaviour_Name <- data %>% select("Study_ID", "Category", "Measurement") %>% filter(`Category` == "Behavioural") %>%
@@ -7022,32 +7022,32 @@ Raw_Aquatic_Salinity_Trait <- data.frame("Phenotypic Trait Categories" = c("Bioc
                                          "CI Low" = c(ci.abs_aquatic_salinity_trait[1]), 
                                          "CI High" = c(ci.abs_aquatic_salinity_trait[2]))
 
-write.csv(Raw_Overall, file = "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/supplementary_material/Raw_Overall.csv", row.names = FALSE)
-write.csv(Raw_Plasticity, file = "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/supplementary_material/Raw_Plasticity.csv", row.names = FALSE)
-write.csv(Raw_Trait, file = "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/supplementary_material/Raw_Trait.csv", row.names = FALSE)
-write.csv(Raw_Taxonomy, file = "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/supplementary_material/Raw_Taxonomy.csv", row.names = FALSE)
-write.csv(Raw_Treatment, file = "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/supplementary_material/Raw_Treatment.csv", row.names = FALSE)
-write.csv(Raw_Terrestrial, file = "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/supplementary_material/Raw_Terrestrial.csv", row.names = FALSE)
-write.csv(Raw_Terrestrial_Plasticity, file = "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/supplementary_material/Raw_Terrestrial_Plasticity.csv", row.names = FALSE)
-write.csv(Raw_Terrestrial_Trait, file = "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/supplementary_material/Raw_Terrestrial_Trait.csv", row.names = FALSE)
-write.csv(Raw_Terrestrial_Treatment, file = "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/supplementary_material/Raw_Terrestrial_Treatment.csv", row.names = FALSE)
-write.csv(Raw_Aquatic, file = "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/supplementary_material/Raw_Aquatic.csv", row.names = FALSE)
-write.csv(Raw_Aquatic_Plasticity, file = "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/supplementary_material/Raw_Aquatic_Plasticity.csv", row.names = FALSE)
-write.csv(Raw_Aquatic_Trait, file = "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/supplementary_material/Raw_Aquatic_Trait.csv", row.names = FALSE)
-write.csv(Raw_Aquatic_Treatment, file = "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/supplementary_material/Raw_Aquatic_Treatment.csv", row.names = FALSE)
-write.csv(Raw_Temperature, file = "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/supplementary_material/Raw_Temperature.csv", row.names = FALSE)
-write.csv(Raw_Temperature_Plasticity, file = "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/supplementary_material/Raw_Temperature_Plasticity.csv", row.names = FALSE)
-write.csv(Raw_Temperature_Trait, file = "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/supplementary_material/Raw_Temperature_Trait.csv", row.names = FALSE)
-write.csv(Raw_Temperature_Taxonomy, file = "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/supplementary_material/Raw_Temperature_Taxonomy.csv", row.names = FALSE)
-write.csv(Raw_Terrestrial_Temperature, file = "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/supplementary_material/Raw_Terrestrial_Temperature.csv", row.names = FALSE)
-write.csv(Raw_Terrestrial_Temperature_Plasticity, file = "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/supplementary_material/Raw_Terrestrial_Temperature_Plasticity.csv", row.names = FALSE)
-write.csv(Raw_Terrestrial_Temperature_Trait, file = "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/supplementary_material/Raw_Terrestrial_Temperature_Trait.csv", row.names = FALSE)
-write.csv(Raw_Aquatic_Temperature, file = "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/supplementary_material/Raw_Aquatic_Temperature.csv", row.names = FALSE)
-write.csv(Raw_Aquatic_Temperature_Plasticity, file = "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/supplementary_material/Raw_Aquatic_Temperature_Plasticity.csv", row.names = FALSE)
-write.csv(Raw_Aquatic_Temperature_Trait, file = "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/supplementary_material/Raw_Aquatic_Temperature_Trait.csv", row.names = FALSE)
-write.csv(Raw_Aquatic_Salinity, file = "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/supplementary_material/Raw_Aquatic_Salinity.csv", row.names = FALSE)
-write.csv(Raw_Aquatic_Salinity_Plasticity, file = "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/supplementary_material/Raw_Aquatic_Salinity_Plasticity.csv", row.names = FALSE)
-write.csv(Raw_Aquatic_Salinity_Trait, file = "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/supplementary_material/Raw_Aquatic_Salinity_Trait.csv", row.names = FALSE)
+write.csv(Raw_Overall, file = "./Raw_Overall.csv", row.names = FALSE)
+write.csv(Raw_Plasticity, file = "./Raw_Plasticity.csv", row.names = FALSE)
+write.csv(Raw_Trait, file = "./Raw_Trait.csv", row.names = FALSE)
+write.csv(Raw_Taxonomy, file = "./Raw_Taxonomy.csv", row.names = FALSE)
+write.csv(Raw_Treatment, file = "./Raw_Treatment.csv", row.names = FALSE)
+write.csv(Raw_Terrestrial, file = "./Raw_Terrestrial.csv", row.names = FALSE)
+write.csv(Raw_Terrestrial_Plasticity, file = "./Raw_Terrestrial_Plasticity.csv", row.names = FALSE)
+write.csv(Raw_Terrestrial_Trait, file = "./Raw_Terrestrial_Trait.csv", row.names = FALSE)
+write.csv(Raw_Terrestrial_Treatment, file = "./Raw_Terrestrial_Treatment.csv", row.names = FALSE)
+write.csv(Raw_Aquatic, file = "./Raw_Aquatic.csv", row.names = FALSE)
+write.csv(Raw_Aquatic_Plasticity, file = "./Raw_Aquatic_Plasticity.csv", row.names = FALSE)
+write.csv(Raw_Aquatic_Trait, file = "./Raw_Aquatic_Trait.csv", row.names = FALSE)
+write.csv(Raw_Aquatic_Treatment, file = "./Raw_Aquatic_Treatment.csv", row.names = FALSE)
+write.csv(Raw_Temperature, file = "./Raw_Temperature.csv", row.names = FALSE)
+write.csv(Raw_Temperature_Plasticity, file = "./Raw_Temperature_Plasticity.csv", row.names = FALSE)
+write.csv(Raw_Temperature_Trait, file = "./Raw_Temperature_Trait.csv", row.names = FALSE)
+write.csv(Raw_Temperature_Taxonomy, file = "./Raw_Temperature_Taxonomy.csv", row.names = FALSE)
+write.csv(Raw_Terrestrial_Temperature, file = "./Raw_Terrestrial_Temperature.csv", row.names = FALSE)
+write.csv(Raw_Terrestrial_Temperature_Plasticity, file = "./Raw_Terrestrial_Temperature_Plasticity.csv", row.names = FALSE)
+write.csv(Raw_Terrestrial_Temperature_Trait, file = "./Raw_Terrestrial_Temperature_Trait.csv", row.names = FALSE)
+write.csv(Raw_Aquatic_Temperature, file = "./Raw_Aquatic_Temperature.csv", row.names = FALSE)
+write.csv(Raw_Aquatic_Temperature_Plasticity, file = "./Raw_Aquatic_Temperature_Plasticity.csv", row.names = FALSE)
+write.csv(Raw_Aquatic_Temperature_Trait, file = "./Raw_Aquatic_Temperature_Trait.csv", row.names = FALSE)
+write.csv(Raw_Aquatic_Salinity, file = "./Raw_Aquatic_Salinity.csv", row.names = FALSE)
+write.csv(Raw_Aquatic_Salinity_Plasticity, file = "./Raw_Aquatic_Salinity_Plasticity.csv", row.names = FALSE)
+write.csv(Raw_Aquatic_Salinity_Trait, file = "./Raw_Aquatic_Salinity_Trait.csv", row.names = FALSE)
 
 
 # Heterogeneity Tables
@@ -7169,8 +7169,8 @@ Heterogeneity_Treatment <- data.frame("Models" = c("Overall","Terrestrial", "Aqu
                                       "Total" = c(overall_i2_treatment["i2_total", 1], terrestrial_i2_treatment["i2_total", 1], 
                                                   aquatic_i2_treatment["i2_total", 1]))
 
-write.csv(Heterogeneity_Subsets, file = "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/supplementary_material/Heterogeneity_Subsets.csv", row.names = FALSE)
-write.csv(Heterogeneity_Plasticity, file = "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/supplementary_material/Heterogeneity_Plasticity.csv", row.names = FALSE)
-write.csv(Heterogeneity_Trait, file = "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/supplementary_material/Heterogeneity_Trait.csv", row.names = FALSE)
-write.csv(Heterogeneity_Tax, file = "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/supplementary_material/Heterogeneity_Tax.csv", row.names = FALSE)
-write.csv(Heterogeneity_Treatment, file = "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/supplementary_material/Heterogeneity_Treatment.csv", row.names = FALSE)
+write.csv(Heterogeneity_Subsets, file = "./Heterogeneity_Subsets.csv", row.names = FALSE)
+write.csv(Heterogeneity_Plasticity, file = "./Heterogeneity_Plasticity.csv", row.names = FALSE)
+write.csv(Heterogeneity_Trait, file = "./Heterogeneity_Trait.csv", row.names = FALSE)
+write.csv(Heterogeneity_Tax, file = "./Heterogeneity_Tax.csv", row.names = FALSE)
+write.csv(Heterogeneity_Treatment, file = "./Heterogeneity_Treatment.csv", row.names = FALSE)
