@@ -9,16 +9,16 @@ pacman::p_load(tidyverse, readxl, gtsummary, dplyr,
                flextable, phytools, MCMCglmm, metaAidR, orchaRd, 
                robumeta, ggpmisc, ggridges, ggbeeswarm, gridExtra)
 
-source("./4_Laboratory_Plasticity/3_Data_Analysis/1_R_code/func.R")
+source("./func.R")
 
 # Importing Data Set
-data <- read.csv("./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/data/Final_Data.csv")
+data <- read.csv("./Final_Data.csv")
 data$obs <- 1:nrow(data)
 data$Scientific_Name <- sub(" ", "_", data$Scientific_Name)
 data$phylo <- data$Scientific_Name
 
 # Phylogenetic covariance matrix
-tree <- ape::read.tree("./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/phylogeny/tree")
+tree <- ape::read.tree("./tree")
 phy <- ape::compute.brlen(tree, method = "Grafen", power = 1)
 A <- ape::vcv.phylo(phy)
 row.names(A) <- colnames(A) <- row.names(A)
@@ -27,7 +27,7 @@ A_cor <- ape::vcv.phylo(phy, corr = TRUE)
 ##### Overall Model #####
 priors <-  prior(student_t(3, 0, 20), class = "sd")
 
-system.time(  # 20ish minutes
+system.time(
   overall <- brms::brm(Effect_Size_Adjusted | se(sqrt(Variance_Adjusted)) 
                        ~ 1 + (1|gr(phylo, cov = A)) + (1|Study_ID) + (1|Measurement) + (1|obs),
                        data = data,
@@ -40,8 +40,8 @@ system.time(  # 20ish minutes
                        thin = 5,
                        prior = priors,
                        control = list(adapt_delta = 0.99, max_treedepth = 15),
-                       file = "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/overall_model",
-                       file_refit = "on_change"))
+                       file = "./overall_model",
+                       file_refit = "always"))
 
 ####-- Bayesian Model/Data Output --#####
 
@@ -84,7 +84,7 @@ Plasticity_Study_Count <- data %>% select("Study_ID", "Plasticity_Category") %>%
                           select("Plasticity_Category") %>% table() %>% data.frame()
 rownames(Plasticity_Study_Count) <- Plasticity_Study_Count$Plasticity_Category
 
-system.time(  # 19ish minutes
+system.time(
   overall_plastic <- brms::brm(Effect_Size_Adjusted | se(sqrt(Variance_Adjusted)) 
                                ~ Plasticity_Category + (1|gr(phylo, cov = A)) + (1|Study_ID) + (1|Measurement) + (1|gr(obs, by = Plasticity_Category, cor = FALSE)),
                                data = data,
@@ -97,8 +97,8 @@ system.time(  # 19ish minutes
                                thin = 5,
                                prior = priors,
                                control = list(adapt_delta = 0.99, max_treedepth = 15),
-                               file = "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/overall_plastic_model",
-                               file_refit = "on_change"))
+                               file = "./overall_plastic_model",
+                               file_refit = "always"))
 
 ####-- Bayesian Model/Data Output --####
 
@@ -129,7 +129,7 @@ overall_plastic_means <- apply(b_plastic, 2, mean)
 overall_plastic_cis <- apply(b_plastic, 2, function(x) HPDinterval(as.mcmc(x)))
 overall_plastic_pMCMC <- apply(b_plastic, 2, function(x) 2*(1 - max(table(x<0) / length(x))))
 
-# Absolute magnitude - Check sd numbers based on what random effects you have added.
+# Absolute magnitude
 b_abs_plastic_acc <- folded_norm(b_plastic$b_Acclimation, sqrt(rowSums(sd_plastic[,c("sd_phylo__Intercept", "sd_Study_ID__Intercept", "sd_Measurement__Intercept")]^2 + sd_plastic[, "sd_Acclimation"]^2)))
 b_abs_plastic_dev <- folded_norm(b_plastic$b_Developmental, sqrt(rowSums(sd_plastic[,c("sd_phylo__Intercept", "sd_Study_ID__Intercept", "sd_Measurement__Intercept")]^2 + sd_plastic[, "sd_Developmental"]^2)))
 b_abs_plastic_trans <- folded_norm(b_plastic$b_Transgenerational, sqrt(rowSums(sd_plastic[,c("sd_phylo__Intercept", "sd_Study_ID__Intercept", "sd_Measurement__Intercept")]^2 + sd_plastic[, "sd_Transgenerational"]^2)))
@@ -251,7 +251,7 @@ density_plasticity <- Plasticity_table %>% mutate(name = fct_relevel(name, Plast
                                              paste(format(round(posterior.mode(exp(as.mcmc(b_abs_plastic_acc))-1)*100, 2), nsmall = 2), "%")), 
                                  x = rev(Plasticity_table$estimate+0.2), y = (seq(1, dim(Plasticity_table)[1], 1)+0.4)), size = 3.5)
 
-density_plasticity #(400x320)
+density_plasticity
 
 # Preparing Graph - Part 1
 
@@ -327,7 +327,7 @@ density_plasticity_1 <- Plasticity_table_1 %>% mutate(name = fct_relevel(name, P
                                                paste(format(round(posterior.mode(exp(as.mcmc(b_abs_plastic_acc))-1)*100, 2), nsmall = 2), "%")), 
                                        x = rev(Plasticity_table_1$estimate+0.2), y = (seq(1, dim(Plasticity_table_1)[1], 1)+0.4)), size = 3.5)
 
-density_plasticity_1 #(400x240)
+density_plasticity_1
 
 # Preparing Graph - Part 2
 
@@ -396,7 +396,7 @@ density_plasticity_2 <- Plasticity_table_2 %>% mutate(name = fct_relevel(name, P
                         geom_label(aes(label=c(paste(format(round(posterior.mode(exp(as.mcmc(b_abs_plastic_trans))-1)*100, 2), nsmall = 2), "%")), 
                                        x = rev(Plasticity_table_2$estimate+0.2), y = (seq(1, dim(Plasticity_table_2)[1], 1)+0.4)), size = 3.5)
 
-density_plasticity_2 #(400x160)
+density_plasticity_2
 
 ##### Overall Model - Trait Category Meta-regression #####
 Trait_Exploration <- data %>% select("Category") %>% table() %>% data.frame()
@@ -412,7 +412,7 @@ Trait_Study_Count <- data %>% select("Study_ID", "Category") %>%
                      select("Category") %>% table() %>% data.frame()
 rownames(Trait_Study_Count) <- Trait_Study_Count$Category
 
-system.time(  # 20ish minutes
+system.time(
   overall_trait <- brms::brm(Effect_Size_Adjusted | se(sqrt(Variance_Adjusted)) 
                              ~ Category + (1|gr(phylo, cov = A)) + (1|Study_ID) + (1|Measurement) + (1|gr(obs, by = Category, cor = FALSE)),
                              data = data,
@@ -425,8 +425,8 @@ system.time(  # 20ish minutes
                              thin = 5,
                              prior = priors,
                              control = list(adapt_delta = 0.99, max_treedepth = 15),
-                             file = "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/overall_trait_model",
-                             file_refit = "on_change"))
+                             file = "./overall_trait_model",
+                             file_refit = "always"))
 
 ####-- Bayesian Model/Data Output --####
 
@@ -466,7 +466,7 @@ overall_trait_means <- apply(b_trait, 2, mean)
 overall_trait_cis <- apply(b_trait, 2, function(x) HPDinterval(as.mcmc(x)))
 overall_trait_pMCMC <- apply(b_trait, 2, function(x) 2*(1 - max(table(x<0) / length(x))))
 
-# Absolute magnitude - Check sd numbers based on what random effects you have added.
+# Absolute magnitude
 b_abs_trait_behavioural <- folded_norm(b_trait$b_Behavioural, sqrt(rowSums(sd_trait[,c("sd_phylo__Intercept", "sd_Study_ID__Intercept", "sd_Measurement__Intercept")]^2 + sd_trait[, "sd_Behavioural"]^2)))
 b_abs_trait_biochem <- folded_norm(b_trait$b_BiochemicalAssay, sqrt(rowSums(sd_trait[,c("sd_phylo__Intercept", "sd_Study_ID__Intercept", "sd_Measurement__Intercept")]^2 + sd_trait[, "sd_BiochemicalAssay"]^2)))
 b_abs_trait_gene <- folded_norm(b_trait$b_GeneExpression, sqrt(rowSums(sd_trait[,c("sd_phylo__Intercept", "sd_Study_ID__Intercept", "sd_Measurement__Intercept")]^2 + sd_trait[, "sd_GeneExpression"]^2)))
@@ -679,7 +679,7 @@ density_trait <- Trait_table %>% mutate(name = fct_relevel(name, Trait_Order)) %
                                         paste(format(round(posterior.mode(exp(as.mcmc(b_abs_trait_behavioural))-1)*100, 2), nsmall = 2), "%")), 
                             x = rev(Trait_table$estimate+c(0.2, 0.2, 0.2, 0.2, 0.2, -0.2, 0.2)), y = (seq(1, dim(Trait_table)[1], 1)+0.4)), size = 3.5)
 
-density_trait #(400x560)
+density_trait
 
 # Preparing Graph - Part 1
 
@@ -769,7 +769,7 @@ density_trait_1 <- Trait_table_1 %>% mutate(name = fct_relevel(name, Trait_Order
                                            paste(format(round(posterior.mode(exp(as.mcmc(b_abs_trait_behavioural))-1)*100, 2), nsmall = 2), "%")), 
                                  x = rev(Trait_table_1$estimate+c(0.2, 0.2, 0.2, 0.2)), y = (seq(1, dim(Trait_table_1)[1], 1)+0.4)), size = 3.5)
 
-density_trait_1 #(400x400)
+density_trait_1
 
 # Preparing Graph - Part 2
 
@@ -852,7 +852,7 @@ density_trait_2 <- Trait_table_2 %>% mutate(name = fct_relevel(name, Trait_Order
                                            paste(format(round(posterior.mode(exp(as.mcmc(b_abs_trait_morphology))-1)*100, 2), nsmall = 2), "%")), 
                                  x = rev(Trait_table_2$estimate+c(0.2, -0.2, 0.2)), y = (seq(1, dim(Trait_table_2)[1], 1)+0.4)), size = 3.5)
 
-density_trait_2 #(400x320)
+density_trait_2
 
 ##### Overall Model - Taxonomy Category Meta-regression #####
 Taxonomy_Exploration <- data %>% select("Class") %>% table() %>% data.frame()
@@ -881,7 +881,7 @@ Taxonomy_A <- as.data.frame(A)
 Taxonomy_A <- Taxonomy_A[c(Taxonomy_Species$phylo), c(Taxonomy_Species$phylo)]
 Taxonomy_A <- as.matrix(Taxonomy_A)
 
-system.time(  # Still getting minimum divergent transitions
+system.time(
   overall_taxonomy <- brms::brm(Effect_Size_Adjusted | se(sqrt(Variance_Adjusted)) 
                                 ~ Class + (1|gr(phylo, cov = A)) + (1|Study_ID) + (1|Measurement) + (1|gr(obs, by = Class, cor = FALSE)),
                                 data = Taxonomy_Data,
@@ -894,8 +894,8 @@ system.time(  # Still getting minimum divergent transitions
                                 thin = 5,
                                 prior = priors,
                                 control = list(adapt_delta = 0.99, max_treedepth = 15),
-                                file = "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/overall_taxonomy_model",
-                                file_refit = "on_change"))
+                                file = "./overall_taxonomy_model",
+                                file_refit = "always"))
 
 ####-- Bayesian Model/Data Output --####
 
@@ -929,7 +929,7 @@ overall_taxonomy_means <- apply(b_taxonomy, 2, mean)
 overall_taxonomy_cis <- apply(b_taxonomy, 2, function(x) HPDinterval(as.mcmc(x)))
 overall_taxonomy_pMCMC <- apply(b_taxonomy, 2, function(x) 2*(1 - max(table(x<0) / length(x))))
 
-# Absolute magnitude - Check sd numbers based on what random effects you have added.
+# Absolute magnitude
 b_abs_taxonomy_actinopteri <- folded_norm(b_taxonomy$b_Actinopteri, sqrt(rowSums(sd_taxonomy[,c("sd_phylo__Intercept", "sd_Study_ID__Intercept", "sd_Measurement__Intercept")]^2 + sd_taxonomy[, "sd_Actinopteri"]^2)))
 b_abs_taxonomy_amphibia <- folded_norm(b_taxonomy$b_Amphibia, sqrt(rowSums(sd_taxonomy[,c("sd_phylo__Intercept", "sd_Study_ID__Intercept", "sd_Measurement__Intercept")]^2 + sd_taxonomy[, "sd_Amphibia"]^2)))
 b_abs_taxonomy_branchiopoda <- folded_norm(b_taxonomy$b_Branchiopoda, sqrt(rowSums(sd_taxonomy[,c("sd_phylo__Intercept", "sd_Study_ID__Intercept", "sd_Measurement__Intercept")]^2 + sd_taxonomy[, "sd_Branchiopoda"]^2)))
@@ -1091,7 +1091,7 @@ density_taxonomy <- Taxonomy_table %>% mutate(name = fct_relevel(name, Taxonomy_
                                            paste(format(round(posterior.mode(exp(as.mcmc(b_abs_taxonomy_actinopteri))-1)*100, 2), nsmall = 2), "%")), 
                                    x = rev(Taxonomy_table$estimate+0.2), y = (seq(1, dim(Taxonomy_table)[1], 1)+0.4)), size = 3.5)
 
-density_taxonomy #(400x480)
+density_taxonomy
 
 # Preparing Graph - Part 1
 
@@ -1174,7 +1174,7 @@ density_taxonomy_1 <- Taxonomy_table_1 %>% mutate(name = fct_relevel(name, Taxon
                                              paste(format(round(posterior.mode(exp(as.mcmc(b_abs_taxonomy_actinopteri))-1)*100, 2), nsmall = 2), "%")), 
                                      x = rev(Taxonomy_table_1$estimate+0.2), y = (seq(1, dim(Taxonomy_table_1)[1], 1)+0.4)), size = 3.5)
 
-density_taxonomy_1 #(400x320)
+density_taxonomy_1
 
 # Preparing Graph - Part 2
 
@@ -1250,7 +1250,7 @@ density_taxonomy_2 <- Taxonomy_table_2 %>% mutate(name = fct_relevel(name, Taxon
                                              paste(format(round(posterior.mode(exp(as.mcmc(b_abs_taxonomy_gastropoda))-1)*100, 2), nsmall = 2), "%")), 
                                      x = rev(Taxonomy_table_2$estimate+0.2), y = (seq(1, dim(Taxonomy_table_2)[1], 1)+0.4)), size = 3.5)
 
-density_taxonomy_2 #(400x240)
+density_taxonomy_2
 
 ##### Overall Model - Treatment Meta-regression #####
 Treatment_Exploration <- data %>% select("Type") %>% table() %>% data.frame()
@@ -1280,7 +1280,7 @@ Treatment_A <- as.data.frame(A)
 Treatment_A <- Treatment_A[c(Treatment_Species$phylo), c(Treatment_Species$phylo)]
 Treatment_A <- as.matrix(Treatment_A)
 
-system.time(  # 20ish minutes
+system.time(
   overall_treatment <- brms::brm(Effect_Size_Adjusted | se(sqrt(Variance_Adjusted)) 
                              ~ Type + (1|gr(phylo, cov = A)) + (1|Study_ID) + (1|Measurement) + (1|gr(obs, by = Type, cor = FALSE)),
                              data = Treatment_Data,
@@ -1293,8 +1293,8 @@ system.time(  # 20ish minutes
                              thin = 5,
                              prior = priors,
                              control = list(adapt_delta = 0.99, max_treedepth = 15),
-                             file = "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/overall_treatment_model",
-                             file_refit = "on_change"))
+                             file = "./overall_treatment_model",
+                             file_refit = "always"))
 
 ####-- Bayesian Model/Data Output --####
 
@@ -1330,7 +1330,7 @@ overall_treatment_means <- apply(b_treatment, 2, mean)
 overall_treatment_cis <- apply(b_treatment, 2, function(x) HPDinterval(as.mcmc(x)))
 overall_treatment_pMCMC <- apply(b_treatment, 2, function(x) 2*(1 - max(table(x<0) / length(x))))
 
-# Absolute magnitude - Check sd numbers based on what random effects you have added.
+# Absolute magnitude
 b_abs_treatment_diet <- folded_norm(b_treatment$b_Diet, sqrt(rowSums(sd_treatment[,c("sd_phylo__Intercept", "sd_Study_ID__Intercept", "sd_Measurement__Intercept")]^2 + sd_treatment[, "sd_Diet"]^2)))
 b_abs_treatment_humidity <- folded_norm(b_treatment$b_Humidity, sqrt(rowSums(sd_treatment[,c("sd_phylo__Intercept", "sd_Study_ID__Intercept", "sd_Measurement__Intercept")]^2 + sd_treatment[, "sd_Humidity"]^2)))
 b_abs_treatment_predator <- folded_norm(b_treatment$b_Predator, sqrt(rowSums(sd_treatment[,c("sd_phylo__Intercept", "sd_Study_ID__Intercept", "sd_Measurement__Intercept")]^2 + sd_treatment[, "sd_Predator"]^2)))
@@ -1510,7 +1510,7 @@ density_treatment <- Treatment_table %>% mutate(name = fct_relevel(name, Treatme
                                             paste(format(round(posterior.mode(exp(as.mcmc(b_abs_treatment_diet))-1)*100, 2), nsmall = 2), "%")), 
                                     x = rev(Treatment_table$estimate+0.2), y = (seq(1, dim(Treatment_table)[1], 1)+0.4)), size = 3.5)
 
-density_treatment #(400x560)
+density_treatment
 
 # Preparing Graph - Part 1
 
@@ -1593,7 +1593,7 @@ density_treatment_1 <- Treatment_table_1 %>% mutate(name = fct_relevel(name, Tre
                                               paste(format(round(posterior.mode(exp(as.mcmc(b_abs_treatment_diet))-1)*100, 2), nsmall = 2), "%")), 
                                      x = rev(Treatment_table_1$estimate+0.2), y = (seq(1, dim(Treatment_table_1)[1], 1)+0.4)), size = 3.5)
 
-density_treatment_1 #(400x320)
+density_treatment_1
 
 # Preparing Graph - Part 2
 
@@ -1676,7 +1676,7 @@ density_treatment_2 <- Treatment_table_2 %>% mutate(name = fct_relevel(name, Tre
                                                paste(format(round(posterior.mode(exp(as.mcmc(b_abs_treatment_salinity))-1)*100, 2), nsmall = 2), "%")), 
                                      x = rev(Treatment_table_2$estimate+0.2), y = (seq(1, dim(Treatment_table_2)[1], 1)+0.4)), size = 3.5)
 
-density_treatment_2 #(400x320)
+density_treatment_2
 
 ##### Terrestrial Model #####
 Terrestrial_Data <- data %>% filter(Ecosystem == "Terrestrial")
@@ -1686,7 +1686,7 @@ Terrestrial_A <- as.data.frame(A)
 Terrestrial_A <- Terrestrial_A[c(Terrestrial_Species$phylo), c(Terrestrial_Species$phylo)]
 Terrestrial_A <- as.matrix(Terrestrial_A)
 
-system.time(  # 20ish minutes
+system.time(
   terrestrial <- brms::brm(Effect_Size_Adjusted | se(sqrt(Variance_Adjusted)) 
                            ~ 1 + (1|gr(phylo, cov = A)) + (1|Study_ID) + (1|Measurement) + (1|obs),
                            data = Terrestrial_Data,
@@ -1699,8 +1699,8 @@ system.time(  # 20ish minutes
                            thin = 5,
                            prior = priors,
                            control = list(adapt_delta = 0.99, max_treedepth = 15),
-                           file = "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/terrestrial_model",
-                           file_refit = "on_change"))
+                           file = "./terrestrial_model",
+                           file_refit = "always"))
 
 ####-- Bayesian Model/Data Output --#####
 
@@ -1753,7 +1753,7 @@ Terrestrial_Plasticity_A <- Terrestrial_Plasticity_A[c(Terrestrial_Plasticity_Sp
 Terrestrial_Plasticity_A <- as.matrix(Terrestrial_Plasticity_A)
 
 
-system.time(  # 35ish minutes
+system.time(
   terrestrial_plastic <- brms::brm(Effect_Size_Adjusted | se(sqrt(Variance_Adjusted)) 
                                    ~ Plasticity_Category + (1|gr(phylo, cov = A)) + (1|Study_ID) + (1|Measurement) + (1|gr(obs, by = Plasticity_Category, cor = FALSE)),
                                    data = Terrestrial_Plasticity_Data,
@@ -1766,8 +1766,8 @@ system.time(  # 35ish minutes
                                    thin = 5,
                                    prior = priors,
                                    control = list(adapt_delta = 0.99, max_treedepth = 15),
-                                   file = "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/terrestrial_plastic_model",
-                                   file_refit = "on_change"))
+                                   file = "./terrestrial_plastic_model",
+                                   file_refit = "always"))
 
 ####-- Bayesian Model/Data Output --####
 
@@ -1794,7 +1794,7 @@ terrestrial_plastic_means <- apply(b_terrestrial_plastic, 2, mean)
 terrestrial_plastic_cis <- apply(b_terrestrial_plastic, 2, function(x) HPDinterval(as.mcmc(x)))
 terrestrial_plastic_pMCMC <- apply(b_terrestrial_plastic, 2, function(x) 2*(1 - max(table(x<0) / length(x))))
 
-# Absolute magnitude - Check sd numbers based on what random effects you have added.
+# Absolute magnitude
 b_abs_terrestrial_plastic_acc <- folded_norm(b_terrestrial_plastic$b_Acclimation, sqrt(rowSums(sd_terrestrial_plastic[,c("sd_phylo__Intercept", "sd_Study_ID__Intercept", "sd_Measurement__Intercept")]^2 + sd_terrestrial_plastic[, "sd_Acclimation"]^2)))
 b_abs_terrestrial_plastic_dev <- folded_norm(b_terrestrial_plastic$b_Developmental, sqrt(rowSums(sd_terrestrial_plastic[,c("sd_phylo__Intercept", "sd_Study_ID__Intercept", "sd_Measurement__Intercept")]^2 + sd_terrestrial_plastic[, "sd_Developmental"]^2)))
 mean_abs_b_terrestrial_plastic_acc <- mean(b_abs_terrestrial_plastic_acc)
@@ -1890,7 +1890,7 @@ density_terrestrial_plasticity <- Terrestrial_Plasticity_table %>% mutate(name =
                                   geom_label(aes(label=c(paste(format(round(posterior.mode(exp(as.mcmc(b_abs_terrestrial_plastic_dev))-1)*100, 2), nsmall = 2), "%"),
                                                          paste(format(round(posterior.mode(exp(as.mcmc(b_abs_terrestrial_plastic_acc))-1)*100, 2), nsmall = 2), "%")), 
                                                  x = rev(Terrestrial_Plasticity_table$estimate+0.25), y = (seq(1, dim(Terrestrial_Plasticity_table)[1], 1)+0.4)), size = 3.5)
-density_terrestrial_plasticity #(400x240)
+density_terrestrial_plasticity
 
 # Preparing Graph - Part 1
 
@@ -1958,7 +1958,7 @@ density_terrestrial_plasticity_1 <- Terrestrial_Plasticity_table_1 %>% mutate(na
                                                  ")"), parse = TRUE, hjust = "right", size = 3.5) +
                                     geom_label(aes(label=c(paste(format(round(posterior.mode(exp(as.mcmc(b_abs_terrestrial_plastic_acc))-1)*100, 2), nsmall = 2), "%")), 
                                                    x = rev(Terrestrial_Plasticity_table_1$estimate+0.25), y = (seq(1, dim(Terrestrial_Plasticity_table_1)[1], 1)+0.4)), size = 3.5)
-density_terrestrial_plasticity_1 #(400x160)
+density_terrestrial_plasticity_1
 
 # Preparing Graph - Part 2
 
@@ -2026,7 +2026,7 @@ density_terrestrial_plasticity_2 <- Terrestrial_Plasticity_table_2 %>% mutate(na
                                                  ")"), parse = TRUE, hjust = "right", size = 3.5) +
                                     geom_label(aes(label=c(paste(format(round(posterior.mode(exp(as.mcmc(b_abs_terrestrial_plastic_dev))-1)*100, 2), nsmall = 2), "%")), 
                                                    x = rev(Terrestrial_Plasticity_table_2$estimate+0.25), y = (seq(1, dim(Terrestrial_Plasticity_table_2)[1], 1)+0.4)), size = 3.5)
-density_terrestrial_plasticity_2 #(400x160)
+density_terrestrial_plasticity_2
 
 ##### Terrestrial Model - Trait Category Meta-regression #####
 Terrestrial_Trait_Exploration <- Terrestrial_Data %>% select("Category") %>% table() %>% data.frame()
@@ -2055,7 +2055,7 @@ Terrestrial_Trait_A <- as.data.frame(A)
 Terrestrial_Trait_A <- Terrestrial_Trait_A[c(Terrestrial_Trait_Species$phylo), c(Terrestrial_Trait_Species$phylo)]
 Terrestrial_Trait_A <- as.matrix(Terrestrial_Trait_A)
 
-system.time(  # 20ish minutes
+system.time(
   terrestrial_trait <- brms::brm(Effect_Size_Adjusted | se(sqrt(Variance_Adjusted)) 
                                  ~ Category + (1|gr(phylo, cov = A)) + (1|Study_ID) + (1|Measurement) + (1|gr(obs, by = Category, cor = FALSE)),
                                  data = Terrestrial_Trait_Data,
@@ -2068,8 +2068,8 @@ system.time(  # 20ish minutes
                                  thin = 5,
                                  prior = priors,
                                  control = list(adapt_delta = 0.99, max_treedepth = 15),
-                                 file = "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/terrestrial_trait_model",
-                                 file_refit = "on_change"))
+                                 file = "./terrestrial_trait_model",
+                                 file_refit = "always"))
 
 ####-- Bayesian Model/Data Output --####
 
@@ -2103,7 +2103,7 @@ terrestrial_trait_means <- apply(b_terrestrial_trait, 2, mean)
 terrestrial_trait_cis <- apply(b_terrestrial_trait, 2, function(x) HPDinterval(as.mcmc(x)))
 terrestrial_trait_pMCMC <- apply(b_terrestrial_trait, 2, function(x) 2*(1 - max(table(x<0) / length(x))))
 
-# Absolute magnitude - Check sd numbers based on what random effects you have added.
+# Absolute magnitude
 b_abs_terrestrial_trait_behavioural <- folded_norm(b_terrestrial_trait$b_Behavioural, sqrt(rowSums(sd_terrestrial_trait[,c("sd_phylo__Intercept", "sd_Study_ID__Intercept", "sd_Measurement__Intercept")]^2 + sd_terrestrial_trait[, "sd_Behavioural"]^2)))
 b_abs_terrestrial_trait_biochem <- folded_norm(b_terrestrial_trait$b_BiochemicalAssay, sqrt(rowSums(sd_terrestrial_trait[,c("sd_phylo__Intercept", "sd_Study_ID__Intercept", "sd_Measurement__Intercept")]^2 + sd_terrestrial_trait[, "sd_BiochemicalAssay"]^2)))
 b_abs_terrestrial_trait_gene <- folded_norm(b_terrestrial_trait$b_GeneExpression, sqrt(rowSums(sd_terrestrial_trait[,c("sd_phylo__Intercept", "sd_Study_ID__Intercept", "sd_Measurement__Intercept")]^2 + sd_terrestrial_trait[, "sd_GeneExpression"]^2)))
@@ -2244,7 +2244,7 @@ density_terrestrial_trait <- Terrestrial_Trait_table %>% mutate(name = fct_relev
                                                     paste(format(round(posterior.mode(exp(as.mcmc(b_abs_terrestrial_trait_behavioural))-1)*100, 2), nsmall = 2), "%")), 
                                             x = rev(Terrestrial_Trait_table$estimate+0.2), y = (seq(1, dim(Terrestrial_Trait_table)[1], 1)+0.4)), size = 3.5)
 
-density_terrestrial_trait #(400x400)
+density_terrestrial_trait
 
 # Preparing Graph - Part 1
 
@@ -2327,7 +2327,7 @@ density_terrestrial_trait_1 <- Terrestrial_Trait_table_1 %>% mutate(name = fct_r
                                                        paste(format(round(posterior.mode(exp(as.mcmc(b_abs_terrestrial_trait_behavioural))-1)*100, 2), nsmall = 2), "%")), 
                                              x = rev(Terrestrial_Trait_table_1$estimate+0.25), y = (seq(1, dim(Terrestrial_Trait_table_1)[1], 1)+0.4)), size = 3.5)
 
-density_terrestrial_trait_1 #(400x320)
+density_terrestrial_trait_1
 
 # Preparing Graph - Part 2
 
@@ -2403,7 +2403,7 @@ density_terrestrial_trait_2 <- Terrestrial_Trait_table_2 %>% mutate(name = fct_r
                                                        paste(format(round(posterior.mode(exp(as.mcmc(b_abs_terrestrial_trait_morphology))-1)*100, 2), nsmall = 2), "%")), 
                                              x = rev(Terrestrial_Trait_table_2$estimate+0.25), y = (seq(1, dim(Terrestrial_Trait_table_2)[1], 1)+0.4)), size = 3.5)
 
-density_terrestrial_trait_2 #(400x240)
+density_terrestrial_trait_2
 
 ##### Terrestrial Model - Treatment Meta-regression #####
 Terrestrial_Treatment_Exploration <- Terrestrial_Data %>% select("Type") %>% table() %>% data.frame()
@@ -2429,7 +2429,7 @@ Terrestrial_Treatment_A <- as.data.frame(A)
 Terrestrial_Treatment_A <- Terrestrial_Treatment_A[c(Terrestrial_Treatment_Species$phylo), c(Terrestrial_Treatment_Species$phylo)]
 Terrestrial_Treatment_A <- as.matrix(Terrestrial_Treatment_A)
 
-system.time(  # 15ish minutes
+system.time(
   terrestrial_treatment <- brms::brm(Effect_Size_Adjusted | se(sqrt(Variance_Adjusted)) 
                                      ~ Type + (1|gr(phylo, cov = A)) + (1|Study_ID) + (1|Measurement) + (1|gr(obs, by = Type, cor = FALSE)),
                                      data = Terrestrial_Treatment_Data,
@@ -2442,8 +2442,8 @@ system.time(  # 15ish minutes
                                      thin = 5,
                                      prior = priors,
                                      control = list(adapt_delta = 0.99, max_treedepth = 15),
-                                     file = "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/terrestrial_treatment_model",
-                                     file_refit = "on_change"))
+                                     file = "./terrestrial_treatment_model",
+                                     file_refit = "always"))
 
 ####-- Bayesian Model/Data Output --####
 
@@ -2468,7 +2468,7 @@ terrestrial_treatment_means <- apply(b_terrestrial_treatment, 2, mean)
 terrestrial_treatment_cis <- apply(b_terrestrial_treatment, 2, function(x) HPDinterval(as.mcmc(x)))
 terrestrial_treatment_pMCMC <- apply(b_terrestrial_treatment, 2, function(x) 2*(1 - max(table(x<0) / length(x))))
 
-# Absolute magnitude - Check sd numbers based on what random effects you have added.
+# Absolute magnitude
 b_abs_terrestrial_treatment_humidity <- folded_norm(b_terrestrial_treatment$b_Humidity, sqrt(rowSums(sd_terrestrial_treatment[,c("sd_phylo__Intercept", "sd_Study_ID__Intercept", "sd_Measurement__Intercept")]^2 + sd_terrestrial_treatment[, "sd_Humidity"]^2)))
 b_abs_terrestrial_treatment_temperature <- folded_norm(b_terrestrial_treatment$b_Temperature, sqrt(rowSums(sd_terrestrial_treatment[,c("sd_phylo__Intercept", "sd_Study_ID__Intercept", "sd_Measurement__Intercept")]^2 + sd_terrestrial_treatment[, "sd_Temperature"]^2)))
 mean_abs_b_terrestrial_treatment_humidity <- mean(b_abs_terrestrial_treatment_humidity)
@@ -2573,7 +2573,7 @@ density_terrestrial_treatment <- Terrestrial_Treatment_table %>% mutate(name = f
                                                         paste(format(round(posterior.mode(exp(as.mcmc(b_abs_terrestrial_treatment_humidity))-1)*100, 2), nsmall = 2), "%")), 
                                             x = rev(Terrestrial_Treatment_table$estimate+0.2), y = (seq(1, dim(Terrestrial_Treatment_table)[1], 1)+0.4)), size = 3.5)
 
-density_terrestrial_treatment #(400x240)
+density_terrestrial_treatment
 
 # Preparing Graph - Part 1
 
@@ -2642,7 +2642,7 @@ density_terrestrial_treatment_1 <- Terrestrial_Treatment_table_1 %>% mutate(name
                                     geom_label(aes(label=c(paste(format(round(posterior.mode(exp(as.mcmc(b_abs_terrestrial_treatment_humidity))-1)*100, 2), nsmall = 2), "%")), 
                                                  x = rev(Terrestrial_Treatment_table_1$estimate+0.25), y = (seq(1, dim(Terrestrial_Treatment_table_1)[1], 1)+0.4)), size = 3.5)
 
-density_terrestrial_treatment_1 #(400x160)
+density_terrestrial_treatment_1
 
 # Preparing Graph - Part 2
 
@@ -2711,7 +2711,7 @@ density_terrestrial_treatment_2 <- Terrestrial_Treatment_table_2 %>% mutate(name
                                     geom_label(aes(label=c(paste(format(round(posterior.mode(exp(as.mcmc(b_abs_terrestrial_treatment_temperature))-1)*100, 2), nsmall = 2), "%")), 
                                                  x = rev(Terrestrial_Treatment_table_2$estimate+0.2), y = (seq(1, dim(Terrestrial_Treatment_table_2)[1], 1)+0.4)), size = 3.5)
 
-density_terrestrial_treatment_2 #(400x160)
+density_terrestrial_treatment_2
 
 ##### Aquatic Model #####
 Aquatic_Data <- data %>% filter(Ecosystem == "Aquatic")
@@ -2721,7 +2721,7 @@ Aquatic_A <- as.data.frame(A)
 Aquatic_A <- Aquatic_A[c(Aquatic_Species$phylo), c(Aquatic_Species$phylo)]
 Aquatic_A <- as.matrix(Aquatic_A)
 
-system.time(  # 100ish minutes
+system.time(
   aquatic <- brms::brm(Effect_Size_Adjusted | se(sqrt(Variance_Adjusted)) 
                        ~ 1 + (1|gr(phylo, cov = A)) + (1|Study_ID) + (1|Measurement) + (1|obs),
                        data = Aquatic_Data,
@@ -2734,8 +2734,8 @@ system.time(  # 100ish minutes
                        thin = 5,
                        prior = priors,
                        control = list(adapt_delta = 0.99, max_treedepth = 15),
-                       file = "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/aquatic_model",
-                       file_refit = "on_change"))
+                       file = "./aquatic_model",
+                       file_refit = "always"))
 
 ####-- Bayesian Model/Data Output --#####
 
@@ -2778,7 +2778,7 @@ Aquatic_Plasticity_Study_Count <- Aquatic_Data %>% select("Study_ID", "Plasticit
                                   select("Plasticity_Category") %>% table() %>% data.frame()
 rownames(Aquatic_Plasticity_Study_Count) <- Aquatic_Plasticity_Study_Count$Plasticity_Category
 
-system.time(  # 19ish minutes
+system.time(
   aquatic_plastic <- brms::brm(Effect_Size_Adjusted | se(sqrt(Variance_Adjusted)) 
                                ~ Plasticity_Category + (1|gr(phylo, cov = A)) + (1|Study_ID) + (1|Measurement) + (1|gr(obs, by = Plasticity_Category, cor = FALSE)),
                                data = Aquatic_Data,
@@ -2791,8 +2791,8 @@ system.time(  # 19ish minutes
                                thin = 5,
                                prior = priors,
                                control = list(adapt_delta = 0.99, max_treedepth = 15),
-                               file = "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/aquatic_plastic_model",
-                               file_refit = "on_change"))
+                               file = "./aquatic_plastic_model",
+                               file_refit = "always"))
 
 ####-- Bayesian Model/Data Output --####
 
@@ -2823,7 +2823,7 @@ aquatic_plastic_means <- apply(b_aquatic_plastic, 2, mean)
 aquatic_plastic_cis <- apply(b_aquatic_plastic, 2, function(x) HPDinterval(as.mcmc(x)))
 aquatic_plastic_pMCMC <- apply(b_aquatic_plastic, 2, function(x) 2*(1 - max(table(x<0) / length(x))))
 
-# Absolute magnitude - Check sd numbers based on what random effects you have added.
+# Absolute magnitude
 b_abs_aquatic_plastic_acc <- folded_norm(b_aquatic_plastic$b_Acclimation, sqrt(rowSums(sd_aquatic_plastic[,c("sd_phylo__Intercept", "sd_Study_ID__Intercept", "sd_Measurement__Intercept")]^2 + sd_aquatic_plastic[, "sd_Acclimation"]^2)))
 b_abs_aquatic_plastic_dev <- folded_norm(b_aquatic_plastic$b_Developmental, sqrt(rowSums(sd_aquatic_plastic[,c("sd_phylo__Intercept", "sd_Study_ID__Intercept", "sd_Measurement__Intercept")]^2 + sd_aquatic_plastic[, "sd_Developmental"]^2)))
 b_abs_aquatic_plastic_trans <- folded_norm(b_aquatic_plastic$b_Transgenerational, sqrt(rowSums(sd_aquatic_plastic[,c("sd_phylo__Intercept", "sd_Study_ID__Intercept", "sd_Measurement__Intercept")]^2 + sd_aquatic_plastic[, "sd_Transgenerational"]^2)))
@@ -2935,7 +2935,7 @@ density_aquatic_plasticity <- Aquatic_Plasticity_table %>% mutate(name = fct_rel
                                                      paste(format(round(posterior.mode(exp(as.mcmc(b_abs_aquatic_plastic_dev))-1)*100, 2), nsmall = 2), "%"),
                                                      paste(format(round(posterior.mode(exp(as.mcmc(b_abs_aquatic_plastic_acc))-1)*100, 2), nsmall = 2), "%")), 
                                              x = rev(Aquatic_Plasticity_table$estimate+0.2), y = (seq(1, dim(Aquatic_Plasticity_table)[1], 1)+0.4)), size = 3.5)
-density_aquatic_plasticity #(400x320)
+density_aquatic_plasticity
 
 # Preparing Graph - Part 1
 
@@ -3010,7 +3010,7 @@ density_aquatic_plasticity_1 <- Aquatic_Plasticity_table_1 %>% mutate(name = fct
                                 geom_label(aes(label=c(paste(format(round(posterior.mode(exp(as.mcmc(b_abs_aquatic_plastic_dev))-1)*100, 2), nsmall = 2), "%"),
                                                        paste(format(round(posterior.mode(exp(as.mcmc(b_abs_aquatic_plastic_acc))-1)*100, 2), nsmall = 2), "%")), 
                                                x = rev(Aquatic_Plasticity_table_1$estimate+0.2), y = (seq(1, dim(Aquatic_Plasticity_table_1)[1], 1)+0.4)), size = 3.5)
-density_aquatic_plasticity_1 #(400x240)
+density_aquatic_plasticity_1
 
 # Preparing Graph - Part 2
 
@@ -3078,7 +3078,7 @@ density_aquatic_plasticity_2 <- Aquatic_Plasticity_table_2 %>% mutate(name = fct
                                              ")"), parse = TRUE, hjust = "right", size = 3.5) +
                                 geom_label(aes(label=c(paste(format(round(posterior.mode(exp(as.mcmc(b_abs_aquatic_plastic_trans))-1)*100, 2), nsmall = 2), "%")), 
                                                x = rev(Aquatic_Plasticity_table_2$estimate+0.2), y = (seq(1, dim(Aquatic_Plasticity_table_2)[1], 1)+0.4)), size = 3.5)
-density_aquatic_plasticity_2 #(400x160)
+density_aquatic_plasticity_2
 
 ##### Aquatic Model - Trait Category Meta-regression #####
 Aquatic_Trait_Exploration <- Aquatic_Data %>% select("Category") %>% table() %>% data.frame()
@@ -3107,7 +3107,7 @@ Aquatic_Trait_A <- as.data.frame(A)
 Aquatic_Trait_A <- Aquatic_Trait_A[c(Aquatic_Trait_Species$phylo), c(Aquatic_Trait_Species$phylo)]
 Aquatic_Trait_A <- as.matrix(Aquatic_Trait_A)
 
-system.time(  # 20ish minutes
+system.time(
   aquatic_trait <- brms::brm(Effect_Size_Adjusted | se(sqrt(Variance_Adjusted)) 
                              ~ Category + (1|gr(phylo, cov = A)) + (1|Study_ID) + (1|Measurement) + (1|gr(obs, by = Category, cor = FALSE)),
                              data = Aquatic_Trait_Data,
@@ -3120,8 +3120,8 @@ system.time(  # 20ish minutes
                              thin = 5,
                              prior = priors,
                              control = list(adapt_delta = 0.99, max_treedepth = 15),
-                             file = "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/aquatic_trait_model",
-                             file_refit = "on_change"))
+                             file = "./aquatic_trait_model",
+                             file_refit = "always"))
 
 ####-- Bayesian Model/Data Output --####
 
@@ -3155,7 +3155,7 @@ aquatic_trait_means <- apply(b_aquatic_trait, 2, mean)
 aquatic_trait_cis <- apply(b_aquatic_trait, 2, function(x) HPDinterval(as.mcmc(x)))
 aquatic_trait_pMCMC <- apply(b_aquatic_trait, 2, function(x) 2*(1 - max(table(x<0) / length(x))))
 
-# Absolute magnitude - Check sd numbers based on what random effects you have added.
+# Absolute magnitude
 b_abs_aquatic_trait_biochem <- folded_norm(b_aquatic_trait$b_BiochemicalAssay, sqrt(rowSums(sd_aquatic_trait[,c("sd_phylo__Intercept", "sd_Study_ID__Intercept", "sd_Measurement__Intercept")]^2 + sd_aquatic_trait[, "sd_BiochemicalAssay"]^2)))
 b_abs_aquatic_trait_life <- folded_norm(b_aquatic_trait$b_LifeMHistoryTraits, sqrt(rowSums(sd_aquatic_trait[,c("sd_phylo__Intercept", "sd_Study_ID__Intercept", "sd_Measurement__Intercept")]^2 + sd_aquatic_trait[, "sd_Life.HistoryTraits"]^2)))
 b_abs_aquatic_trait_morphology <- folded_norm(b_aquatic_trait$b_Morphology, sqrt(rowSums(sd_aquatic_trait[,c("sd_phylo__Intercept", "sd_Study_ID__Intercept", "sd_Measurement__Intercept")]^2 + sd_aquatic_trait[, "sd_Morphology"]^2)))
@@ -3324,7 +3324,7 @@ density_aquatic_trait <- Aquatic_Trait_table %>% mutate(name = fct_relevel(name,
                                                 paste(format(round(posterior.mode(exp(as.mcmc(b_abs_aquatic_trait_biochem))-1)*100, 2), nsmall = 2), "%")), 
                                         x = rev(Aquatic_Trait_table$estimate+c(0.2, 0.2, 0.2, -0.2, 0.2)), y = (seq(1, dim(Aquatic_Trait_table)[1], 1)+0.4)), size = 3.5)
 
-density_aquatic_trait #(400x480)
+density_aquatic_trait
 
 # Preparing Graph - Part 1
 
@@ -3407,7 +3407,7 @@ density_aquatic_trait_1 <- Aquatic_Trait_table_1 %>% mutate(name = fct_relevel(n
                                                    paste(format(round(posterior.mode(exp(as.mcmc(b_abs_aquatic_trait_biochem))-1)*100, 2), nsmall = 2), "%")), 
                                          x = rev(Aquatic_Trait_table_1$estimate+c(0.2, 0.2, 0.2)), y = (seq(1, dim(Aquatic_Trait_table_1)[1], 1)+0.4)), size = 3.5)
 
-density_aquatic_trait_1 #(400x320)
+density_aquatic_trait_1
 
 # Preparing Graph - Part 2
 
@@ -3483,7 +3483,7 @@ density_aquatic_trait_2 <- Aquatic_Trait_table_2 %>% mutate(name = fct_relevel(n
                                                    paste(format(round(posterior.mode(exp(as.mcmc(b_abs_aquatic_trait_physiological))-1)*100, 2), nsmall = 2), "%")), 
                                          x = rev(Aquatic_Trait_table_2$estimate+c(-0.2, 0.2)), y = (seq(1, dim(Aquatic_Trait_table_2)[1], 1)+0.4)), size = 3.5)
 
-density_aquatic_trait_2 #(400x240)
+density_aquatic_trait_2
 
 ##### Aquatic Model - Treatment Meta-regression #####
 Aquatic_Treatment_Exploration <- Aquatic_Data %>% select("Type") %>% table() %>% data.frame()
@@ -3512,7 +3512,7 @@ Aquatic_Treatment_A <- as.data.frame(A)
 Aquatic_Treatment_A <- Aquatic_Treatment_A[c(Aquatic_Treatment_Species$phylo), c(Aquatic_Treatment_Species$phylo)]
 Aquatic_Treatment_A <- as.matrix(Aquatic_Treatment_A)
 
-system.time(  # 15ish minutes
+system.time(
   aquatic_treatment <- brms::brm(Effect_Size_Adjusted | se(sqrt(Variance_Adjusted)) 
                                  ~ Type + (1|gr(phylo, cov = A)) + (1|Study_ID) + (1|Measurement) + (1|gr(obs, by = Type, cor = FALSE)),
                                  data = Aquatic_Treatment_Data,
@@ -3525,8 +3525,8 @@ system.time(  # 15ish minutes
                                  thin = 5,
                                  prior = priors,
                                  control = list(adapt_delta = 0.99, max_treedepth = 15),
-                                 file = "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/aquatic_treatment_model",
-                                 file_refit = "on_change"))
+                                 file = "./aquatic_treatment_model",
+                                 file_refit = "always"))
 
 ####-- Bayesian Model/Data Output --####
 
@@ -3562,7 +3562,7 @@ aquatic_treatment_means <- apply(b_aquatic_treatment, 2, mean)
 aquatic_treatment_cis <- apply(b_aquatic_treatment, 2, function(x) HPDinterval(as.mcmc(x)))
 aquatic_treatment_pMCMC <- apply(b_aquatic_treatment, 2, function(x) 2*(1 - max(table(x<0) / length(x))))
 
-# Absolute magnitude - Check sd numbers based on what random effects you have added.
+# Absolute magnitude
 b_abs_aquatic_treatment_diet <- folded_norm(b_aquatic_treatment$b_Diet, sqrt(rowSums(sd_aquatic_treatment[,c("sd_phylo__Intercept", "sd_Study_ID__Intercept", "sd_Measurement__Intercept")]^2 + sd_aquatic_treatment[, "sd_Diet"]^2)))
 b_abs_aquatic_treatment_predator <- folded_norm(b_aquatic_treatment$b_Predator, sqrt(rowSums(sd_aquatic_treatment[,c("sd_phylo__Intercept", "sd_Study_ID__Intercept", "sd_Measurement__Intercept")]^2 + sd_aquatic_treatment[, "sd_Predator"]^2)))
 b_abs_aquatic_treatment_salinity <- folded_norm(b_aquatic_treatment$b_Salinity, sqrt(rowSums(sd_aquatic_treatment[,c("sd_phylo__Intercept", "sd_Study_ID__Intercept", "sd_Measurement__Intercept")]^2 + sd_aquatic_treatment[, "sd_Salinity"]^2)))
@@ -3701,7 +3701,7 @@ density_aquatic_treatment <- Aquatic_Treatment_table %>% mutate(name = fct_relev
                                                     paste(format(round(posterior.mode(exp(as.mcmc(b_abs_aquatic_treatment_diet))-1)*100, 2), nsmall = 2), "%")), 
                                         x = rev(Aquatic_Treatment_table$estimate+0.2), y = (seq(1, dim(Aquatic_Treatment_table)[1], 1)+0.4)), size = 3.5)
 
-density_aquatic_treatment #(400x480)
+density_aquatic_treatment
 
 # Preparing Graph - Part 1
 
@@ -3785,7 +3785,7 @@ density_aquatic_treatment_1 <- Aquatic_Treatment_table_1 %>% mutate(name = fct_r
                                                        paste(format(round(posterior.mode(exp(as.mcmc(b_abs_aquatic_treatment_diet))-1)*100, 2), nsmall = 2), "%")), 
                                              x = rev(Aquatic_Treatment_table_1$estimate+0.2), y = (seq(1, dim(Aquatic_Treatment_table_1)[1], 1)+0.4)), size = 3.5)
 
-density_aquatic_treatment_1 #(400x320)
+density_aquatic_treatment_1
 
 # Preparing Graph - Part 2
 
@@ -3861,7 +3861,7 @@ density_aquatic_treatment_2 <- Aquatic_Treatment_table_2 %>% mutate(name = fct_r
                                                        paste(format(round(posterior.mode(exp(as.mcmc(b_abs_aquatic_treatment_temperature))-1)*100, 2), nsmall = 2), "%")), 
                                              x = rev(Aquatic_Treatment_table_2$estimate+0.2), y = (seq(1, dim(Aquatic_Treatment_table_2)[1], 1)+0.4)), size = 3.5)
 
-density_aquatic_treatment_2 #(400x240)
+density_aquatic_treatment_2
 
 ##### Temperature Model #####
 Temperature_Data <- data %>% filter(Type == "Temperature")
@@ -3871,7 +3871,7 @@ Temperature_A <- as.data.frame(A)
 Temperature_A <- Temperature_A[c(Temperature_Species$phylo), c(Temperature_Species$phylo)]
 Temperature_A <- as.matrix(Temperature_A)
 
-system.time(  # 2ish minutes
+system.time(
   temperature <- brms::brm(Effect_Size_Type_Adjusted | se(sqrt(Variance_Type_Adjusted)) 
                        ~ 1 + (1|gr(phylo, cov = A)) + (1|Study_ID) + (1|obs),
                        data = Temperature_Data,
@@ -3884,8 +3884,8 @@ system.time(  # 2ish minutes
                        thin = 5,
                        prior = priors,
                        control = list(adapt_delta = 0.99, max_treedepth = 15),
-                       file = "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/temperature_model",
-                       file_refit = "on_change"))
+                       file = "./temperature_model",
+                       file_refit = "always"))
 
 ####-- Bayesian Model/Data Output --#####
 
@@ -3927,7 +3927,7 @@ Temperature_Plasticity_Study_Count <- Temperature_Data %>% select("Study_ID", "P
                                       select("Plasticity_Category") %>% table() %>% data.frame()
 rownames(Temperature_Plasticity_Study_Count) <- Temperature_Plasticity_Study_Count$Plasticity_Category
 
-system.time(  # 2ish minutes
+system.time(
   temperature_plastic <- brms::brm(Effect_Size_Type_Adjusted | se(sqrt(Variance_Type_Adjusted)) 
                                    ~ Plasticity_Category + (1|gr(phylo, cov = A)) + (1|Study_ID) + (1|gr(obs, by = Plasticity_Category, cor = FALSE)),
                                    data = Temperature_Data,
@@ -3940,8 +3940,8 @@ system.time(  # 2ish minutes
                                    thin = 5,
                                    prior = priors,
                                    control = list(adapt_delta = 0.99, max_treedepth = 15),
-                                   file = "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/temperature_plastic_model",
-                                   file_refit = "on_change"))
+                                   file = "./temperature_plastic_model",
+                                   file_refit = "always"))
 
 ####-- Bayesian Model/Data Output --####
 
@@ -3970,7 +3970,7 @@ temperature_plastic_means <- apply(b_temperature_plastic, 2, mean)
 temperature_plastic_cis <- apply(b_temperature_plastic, 2, function(x) HPDinterval(as.mcmc(x)))
 temperature_plastic_pMCMC <- apply(b_temperature_plastic, 2, function(x) 2*(1 - max(table(x<0) / length(x))))
 
-# Absolute magnitude - Check sd numbers based on what random effects you have added.
+# Absolute magnitude
 b_abs_temperature_plastic_acc <- folded_norm(b_temperature_plastic$b_Acclimation, sqrt(rowSums(sd_temperature_plastic[,c("sd_phylo__Intercept", "sd_Study_ID__Intercept")]^2 + sd_temperature_plastic[, "sd_Acclimation"]^2)))
 b_abs_temperature_plastic_dev <- folded_norm(b_temperature_plastic$b_Developmental, sqrt(rowSums(sd_temperature_plastic[,c("sd_phylo__Intercept", "sd_Study_ID__Intercept")]^2 + sd_temperature_plastic[, "sd_Developmental"]^2)))
 b_abs_temperature_plastic_trans <- folded_norm(b_temperature_plastic$b_Transgenerational, sqrt(rowSums(sd_temperature_plastic[,c("sd_phylo__Intercept", "sd_Study_ID__Intercept")]^2 + sd_temperature_plastic[, "sd_Transgenerational"]^2)))
@@ -4079,7 +4079,7 @@ density_temperature_plasticity <- Temperature_Plasticity_table %>% mutate(name =
                                                          paste(format(round(posterior.mode(exp(as.mcmc(b_abs_temperature_plastic_acc))-1)*100, 2), nsmall = 2), "%")), 
                                                  x = rev(Temperature_Plasticity_table$estimate+0.2), y = (seq(1, dim(Temperature_Plasticity_table)[1], 1)+0.4)), size = 3.5)
 
-density_temperature_plasticity #(400x320)
+density_temperature_plasticity
 
 # Preparing Graph - Part 1
 
@@ -4155,7 +4155,7 @@ density_temperature_plasticity_1 <- Temperature_Plasticity_table_1 %>% mutate(na
                                                            paste(format(round(posterior.mode(exp(as.mcmc(b_abs_temperature_plastic_acc))-1)*100, 2), nsmall = 2), "%")), 
                                                    x = rev(Temperature_Plasticity_table_1$estimate+0.2), y = (seq(1, dim(Temperature_Plasticity_table_1)[1], 1)+0.4)), size = 3.5)
 
-density_temperature_plasticity_1 #(400x240)
+density_temperature_plasticity_1
 
 # Preparing Graph - Part 2
 
@@ -4224,7 +4224,7 @@ density_temperature_plasticity_2 <- Temperature_Plasticity_table_2 %>% mutate(na
                                     geom_label(aes(label=c(paste(format(round(posterior.mode(exp(as.mcmc(b_abs_temperature_plastic_trans))-1)*100, 2), nsmall = 2), "%")), 
                                                    x = rev(Temperature_Plasticity_table_2$estimate+0.2), y = (seq(1, dim(Temperature_Plasticity_table_2)[1], 1)+0.4)), size = 3.5)
 
-density_temperature_plasticity_2 #(400x160)
+density_temperature_plasticity_2
 
 ##### Temperature Model - Trait Category Meta-regression #####
 Temperature_Trait_Exploration <- Temperature_Data %>% select("Category") %>% table() %>% data.frame()
@@ -4252,7 +4252,7 @@ Temperature_Trait_A <- as.data.frame(A)
 Temperature_Trait_A <- Temperature_Trait_A[c(Temperature_Trait_Species$phylo), c(Temperature_Trait_Species$phylo)]
 Temperature_Trait_A <- as.matrix(Temperature_Trait_A)
 
-system.time(  # 2ish minutes
+system.time(
   temperature_trait <- brms::brm(Effect_Size_Type_Adjusted | se(sqrt(Variance_Type_Adjusted)) 
                                  ~ Category + (1|gr(phylo, cov = A)) + (1|Study_ID) + (1|gr(obs, by = Category, cor = FALSE)),
                                  data = Temperature_Trait_Data,
@@ -4265,8 +4265,8 @@ system.time(  # 2ish minutes
                                  thin = 5,
                                  prior = priors,
                                  control = list(adapt_delta = 0.99, max_treedepth = 15),
-                                 file = "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/temperature_trait_model",
-                                 file_refit = "on_change"))
+                                 file = "./temperature_trait_model",
+                                 file_refit = "always"))
 
 ####-- Bayesian Model/Data Output --####
 
@@ -4295,7 +4295,7 @@ temperature_trait_means <- apply(b_temperature_trait, 2, mean)
 temperature_trait_cis <- apply(b_temperature_trait, 2, function(x) HPDinterval(as.mcmc(x)))
 temperature_trait_pMCMC <- apply(b_temperature_trait, 2, function(x) 2*(1 - max(table(x<0) / length(x))))
 
-# Absolute magnitude - Check sd numbers based on what random effects you have added.
+# Absolute magnitude
 b_abs_temperature_trait_behavioural <- folded_norm(b_temperature_trait$b_Behavioural, sqrt(rowSums(sd_temperature_trait[,c("sd_phylo__Intercept", "sd_Study_ID__Intercept")]^2 + sd_temperature_trait[, "sd_Behavioural"]^2)))
 b_abs_temperature_trait_biochem <- folded_norm(b_temperature_trait$b_BiochemicalAssay, sqrt(rowSums(sd_temperature_trait[,c("sd_phylo__Intercept", "sd_Study_ID__Intercept")]^2 + sd_temperature_trait[, "sd_BiochemicalAssay"]^2)))
 b_abs_temperature_trait_morphology <- folded_norm(b_temperature_trait$b_Morphology, sqrt(rowSums(sd_temperature_trait[,c("sd_phylo__Intercept", "sd_Study_ID__Intercept")]^2 + sd_temperature_trait[, "sd_Morphology"]^2)))
@@ -4425,7 +4425,7 @@ density_temperature_trait <- Temperature_Trait_table %>% mutate(name = fct_relev
                                                     paste(format(round(posterior.mode(exp(as.mcmc(b_abs_temperature_trait_behavioural))-1)*100, 2), nsmall = 2), "%")), 
                                         x = rev(Temperature_Trait_table$estimate+0.2), y = (seq(1, dim(Temperature_Trait_table)[1], 1)+0.4)), size = 3.5)
 
-density_temperature_trait #(400x400)
+density_temperature_trait
 
 # Preparing Graph - Part 1
 
@@ -4501,7 +4501,7 @@ density_temperature_trait_1 <- Temperature_Trait_table_1 %>% mutate(name = fct_r
                                                        paste(format(round(posterior.mode(exp(as.mcmc(b_abs_temperature_trait_behavioural))-1)*100, 2), nsmall = 2), "%")), 
                                              x = rev(Temperature_Trait_table_1$estimate+0.2), y = (seq(1, dim(Temperature_Trait_table_1)[1], 1)+0.4)), size = 3.5)
 
-density_temperature_trait_1 #(400x240)
+density_temperature_trait_1
 
 # Preparing Graph - Part 2
 
@@ -4577,7 +4577,7 @@ density_temperature_trait_2 <- Temperature_Trait_table_2 %>% mutate(name = fct_r
                                                        paste(format(round(posterior.mode(exp(as.mcmc(b_abs_temperature_trait_morphology))-1)*100, 2), nsmall = 2), "%")), 
                                              x = rev(Temperature_Trait_table_2$estimate+0.2), y = (seq(1, dim(Temperature_Trait_table_2)[1], 1)+0.4)), size = 3.5)
 
-density_temperature_trait_2 #(400x240)
+density_temperature_trait_2
 
 ##### Temperature Model - Taxonomy Category Meta-regression #####
 Temperature_Taxonomy_Exploration <- Temperature_Data %>% select("Class") %>% table() %>% data.frame()
@@ -4603,7 +4603,7 @@ Temperature_Taxonomy_A <- as.data.frame(A)
 Temperature_Taxonomy_A <- Temperature_Taxonomy_A[c(Temperature_Taxonomy_Species$phylo), c(Temperature_Taxonomy_Species$phylo)]
 Temperature_Taxonomy_A <- as.matrix(Temperature_Taxonomy_A)
 
-system.time(  # 3ish minutes
+system.time(
   temperature_taxonomy <- brms::brm(Effect_Size_Type_Adjusted | se(sqrt(Variance_Type_Adjusted)) 
                                     ~ Class + (1|gr(phylo, cov = A)) + (1|Study_ID) + (1|gr(obs, by = Class, cor = FALSE)),
                                     data = Temperature_Taxonomy_Data,
@@ -4616,8 +4616,8 @@ system.time(  # 3ish minutes
                                     thin = 5,
                                     prior = priors,
                                     control = list(adapt_delta = 0.99, max_treedepth = 15),
-                                    file = "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/temperature_taxonomy_model",
-                                    file_refit = "on_change"))
+                                    file = "./temperature_taxonomy_model",
+                                    file_refit = "always"))
 
 ####-- Bayesian Model/Data Output --####
 
@@ -4639,7 +4639,7 @@ temperature_taxonomy_means <- apply(b_temperature_taxonomy, 2, mean)
 temperature_taxonomy_cis <- apply(b_temperature_taxonomy, 2, function(x) HPDinterval(as.mcmc(x)))
 temperature_taxonomy_pMCMC <- apply(b_temperature_taxonomy, 2, function(x) 2*(1 - max(table(x<0) / length(x))))
 
-# Absolute magnitude - Check sd numbers based on what random effects you have added.
+# Absolute magnitude
 b_abs_temperature_taxonomy_actinopteri <- folded_norm(b_temperature_taxonomy$b_Actinopteri, sqrt(rowSums(sd_temperature_taxonomy[,c("sd_phylo__Intercept", "sd_Study_ID__Intercept")]^2 + sd_temperature_taxonomy[, "sd_Actinopteri"]^2)))
 b_abs_temperature_taxonomy_insecta <- folded_norm(b_temperature_taxonomy$b_Insecta, sqrt(rowSums(sd_temperature_taxonomy[,c("sd_phylo__Intercept", "sd_Study_ID__Intercept")]^2 + sd_temperature_taxonomy[, "sd_Insecta"]^2)))
 mean_abs_b_temperature_taxonomy_actinopteri <- mean(b_abs_temperature_taxonomy_actinopteri)
@@ -4737,7 +4737,7 @@ density_temperature_taxonomy <- Temperature_Taxonomy_table %>% mutate(name = fct
                                                        paste(format(round(posterior.mode(exp(as.mcmc(b_abs_temperature_taxonomy_actinopteri))-1)*100, 2), nsmall = 2), "%")), 
                                                x = rev(Temperature_Taxonomy_table$estimate+0.2), y = (seq(1, dim(Temperature_Taxonomy_table)[1], 1)+0.4)), size = 3.5)
 
-density_temperature_taxonomy #(400x240)
+density_temperature_taxonomy
 
 # Preparing Graph - Part 1
 
@@ -4806,7 +4806,7 @@ density_temperature_taxonomy_1 <- Temperature_Taxonomy_table_1 %>% mutate(name =
                                   geom_label(aes(label=c(paste(format(round(posterior.mode(exp(as.mcmc(b_abs_temperature_taxonomy_actinopteri))-1)*100, 2), nsmall = 2), "%")), 
                                                  x = rev(Temperature_Taxonomy_table_1$estimate+0.2), y = (seq(1, dim(Temperature_Taxonomy_table_1)[1], 1)+0.4)), size = 3.5)
 
-density_temperature_taxonomy_1 #(400x160)
+density_temperature_taxonomy_1
 
 # Preparing Graph - Part 2
 
@@ -4875,7 +4875,7 @@ density_temperature_taxonomy_2 <- Temperature_Taxonomy_table_2 %>% mutate(name =
                                   geom_label(aes(label=c(paste(format(round(posterior.mode(exp(as.mcmc(b_abs_temperature_taxonomy_insecta))-1)*100, 2), nsmall = 2), "%")), 
                                                  x = rev(Temperature_Taxonomy_table_2$estimate+0.2), y = (seq(1, dim(Temperature_Taxonomy_table_2)[1], 1)+0.4)), size = 3.5)
 
-density_temperature_taxonomy_2 #(400x160)
+density_temperature_taxonomy_2
 
 ##### Terrestrial and Temperature Model #####
 Terrestrial_Temperature_Data <- data %>% filter(Ecosystem == "Terrestrial" & Type == "Temperature")
@@ -4885,7 +4885,7 @@ Terrestrial_Temperature_A <- as.data.frame(A)
 Terrestrial_Temperature_A <- Terrestrial_Temperature_A[c(Terrestrial_Temperature_Species$phylo), c(Terrestrial_Temperature_Species$phylo)]
 Terrestrial_Temperature_A <- as.matrix(Terrestrial_Temperature_A)
 
-system.time(  # 2ish minutes
+system.time(
   terrestrial_temperature <- brms::brm(Effect_Size_Type_Adjusted | se(sqrt(Variance_Type_Adjusted)) 
                                        ~ 1 + (1|gr(phylo, cov = A)) + (1|Study_ID) + (1|obs),
                                        data = Terrestrial_Temperature_Data,
@@ -4898,8 +4898,8 @@ system.time(  # 2ish minutes
                                        thin = 5,
                                        prior = priors,
                                        control = list(adapt_delta = 0.99, max_treedepth = 15),
-                                       file = "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/terrestrial_temperature_model",
-                                       file_refit = "on_change"))
+                                       file = "./terrestrial_temperature_model",
+                                       file_refit = "always"))
 
 ####-- Bayesian Model/Data Output --#####
 
@@ -4951,7 +4951,7 @@ Terrestrial_Temperature_Plasticity_A <- Terrestrial_Temperature_Plasticity_A[c(T
 Terrestrial_Temperature_Plasticity_A <- as.matrix(Terrestrial_Temperature_Plasticity_A)
 
 
-system.time(  # still getting minimum divergent transitions
+system.time(
   terrestrial_temperature_plastic <- brms::brm(Effect_Size_Type_Adjusted | se(sqrt(Variance_Type_Adjusted)) 
                                                ~ Plasticity_Category + (1|gr(phylo, cov = A)) + (1|Study_ID) + (1|gr(obs, by = Plasticity_Category, cor = FALSE)),
                                                data = Terrestrial_Temperature_Plasticity_Data,
@@ -4964,8 +4964,8 @@ system.time(  # still getting minimum divergent transitions
                                                thin = 5,
                                                prior = priors,
                                                control = list(adapt_delta = 0.99, max_treedepth = 15),
-                                               file = "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/terrestrial_temperature_plastic_model",
-                                               file_refit = "on_change"))
+                                               file = "./terrestrial_temperature_plastic_model",
+                                               file_refit = "always"))
 
 ####-- Bayesian Model/Data Output --####
 
@@ -4990,7 +4990,7 @@ terrestrial_temperature_plastic_means <- apply(b_terrestrial_temperature_plastic
 terrestrial_temperature_plastic_cis <- apply(b_terrestrial_temperature_plastic, 2, function(x) HPDinterval(as.mcmc(x)))
 terrestrial_temperature_plastic_pMCMC <- apply(b_terrestrial_temperature_plastic, 2, function(x) 2*(1 - max(table(x<0) / length(x))))
 
-# Absolute magnitude - Check sd numbers based on what random effects you have added.
+# Absolute magnitude
 b_abs_terrestrial_temperature_plastic_acc <- folded_norm(b_terrestrial_temperature_plastic$b_Acclimation, sqrt(rowSums(sd_terrestrial_temperature_plastic[,c("sd_phylo__Intercept", "sd_Study_ID__Intercept")]^2 + sd_terrestrial_temperature_plastic[, "sd_Acclimation"]^2)))
 b_abs_terrestrial_temperature_plastic_dev <- folded_norm(b_terrestrial_temperature_plastic$b_Developmental, sqrt(rowSums(sd_terrestrial_temperature_plastic[,c("sd_phylo__Intercept", "sd_Study_ID__Intercept")]^2 + sd_terrestrial_temperature_plastic[, "sd_Developmental"]^2)))
 mean_abs_b_terrestrial_temperature_plastic_acc <- mean(b_abs_terrestrial_temperature_plastic_acc)
@@ -5087,7 +5087,7 @@ density_terrestrial_temperature_plasticity <- Terrestrial_Temperature_Plasticity
                                                                      paste(format(round(posterior.mode(exp(as.mcmc(b_abs_terrestrial_temperature_plastic_acc))-1)*100, 2), nsmall = 2), "%")), 
                                                          x = rev(Terrestrial_Temperature_Plasticity_table$estimate+0.2), y = (seq(1, dim(Terrestrial_Temperature_Plasticity_table)[1], 1)+0.4)), size = 3.5)
 
-density_terrestrial_temperature_plasticity #(400x240)
+density_terrestrial_temperature_plasticity
 
 # Preparing Graph - Part 1
 
@@ -5156,7 +5156,7 @@ density_terrestrial_temperature_plasticity_1 <- Terrestrial_Temperature_Plastici
                                                 geom_label(aes(label=c(paste(format(round(posterior.mode(exp(as.mcmc(b_abs_terrestrial_temperature_plastic_acc))-1)*100, 2), nsmall = 2), "%")), 
                                                                x = rev(Terrestrial_Temperature_Plasticity_table_1$estimate+0.2), y = (seq(1, dim(Terrestrial_Temperature_Plasticity_table_1)[1], 1)+0.4)), size = 3.5)
 
-density_terrestrial_temperature_plasticity_1 #(400x160)
+density_terrestrial_temperature_plasticity_1
 
 # Preparing Graph - Part 2
 
@@ -5225,7 +5225,7 @@ density_terrestrial_temperature_plasticity_2 <- Terrestrial_Temperature_Plastici
                                                 geom_label(aes(label=c(paste(format(round(posterior.mode(exp(as.mcmc(b_abs_terrestrial_temperature_plastic_dev))-1)*100, 2), nsmall = 2), "%")), 
                                                                x = rev(Terrestrial_Temperature_Plasticity_table_2$estimate+0.22), y = (seq(1, dim(Terrestrial_Temperature_Plasticity_table_2)[1], 1)+0.4)), size = 3.5)
 
-density_terrestrial_temperature_plasticity_2 #(400x160)
+density_terrestrial_temperature_plasticity_2
 
 ##### Terrestrial and Temperature Model - Trait Category Meta-regression #####
 Terrestrial_Temperature_Trait_Exploration <- Terrestrial_Temperature_Data %>% select("Category") %>% table() %>% data.frame()
@@ -5253,7 +5253,7 @@ Terrestrial_Temperature_Trait_A <- as.data.frame(A)
 Terrestrial_Temperature_Trait_A <- Terrestrial_Temperature_Trait_A[c(Terrestrial_Temperature_Trait_Species$phylo), c(Terrestrial_Temperature_Trait_Species$phylo)]
 Terrestrial_Temperature_Trait_A <- as.matrix(Terrestrial_Temperature_Trait_A)
 
-system.time(  # still getting minimum divergent transitions
+system.time(
   terrestrial_temperature_trait <- brms::brm(Effect_Size_Type_Adjusted | se(sqrt(Variance_Type_Adjusted)) 
                                              ~ Category + (1|gr(phylo, cov = A)) + (1|Study_ID) + (1|gr(obs, by = Category, cor = FALSE)),
                                              data = Terrestrial_Temperature_Trait_Data,
@@ -5266,8 +5266,8 @@ system.time(  # still getting minimum divergent transitions
                                              thin = 5,
                                              prior = priors,
                                              control = list(adapt_delta = 0.99, max_treedepth = 15),
-                                             file = "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/terrestrial_temperature_trait_model",
-                                             file_refit = "on_change"))
+                                             file = "./terrestrial_temperature_trait_model",
+                                             file_refit = "always"))
 terrestrial_temperature_trait
 
 ####-- Bayesian Model/Data Output --####
@@ -5297,7 +5297,7 @@ terrestrial_temperature_trait_means <- apply(b_terrestrial_temperature_trait, 2,
 terrestrial_temperature_trait_cis <- apply(b_terrestrial_temperature_trait, 2, function(x) HPDinterval(as.mcmc(x)))
 terrestrial_temperature_trait_pMCMC <- apply(b_terrestrial_temperature_trait, 2, function(x) 2*(1 - max(table(x<0) / length(x))))
 
-# Absolute magnitude - Check sd numbers based on what random effects you have added.
+# Absolute magnitude
 b_abs_terrestrial_temperature_trait_behavioural <- folded_norm(b_terrestrial_temperature_trait$b_Behavioural, sqrt(rowSums(sd_terrestrial_temperature_trait[,c("sd_phylo__Intercept", "sd_Study_ID__Intercept")]^2 + sd_terrestrial_temperature_trait[, "sd_Behavioural"]^2)))
 b_abs_terrestrial_temperature_trait_biochem <- folded_norm(b_terrestrial_temperature_trait$b_BiochemicalAssay, sqrt(rowSums(sd_terrestrial_temperature_trait[,c("sd_phylo__Intercept", "sd_Study_ID__Intercept")]^2 + sd_terrestrial_temperature_trait[, "sd_BiochemicalAssay"]^2)))
 b_abs_terrestrial_temperature_trait_morphology <- folded_norm(b_terrestrial_temperature_trait$b_Morphology, sqrt(rowSums(sd_terrestrial_temperature_trait[,c("sd_phylo__Intercept", "sd_Study_ID__Intercept")]^2 + sd_terrestrial_temperature_trait[, "sd_Morphology"]^2)))
@@ -5428,7 +5428,7 @@ density_terrestrial_temperature_trait <- Terrestrial_Temperature_Trait_table %>%
                                                                 paste(format(round(posterior.mode(exp(as.mcmc(b_abs_terrestrial_temperature_trait_behavioural))-1)*100, 2), nsmall = 2), "%")), 
                                                     x = rev(Terrestrial_Temperature_Trait_table$estimate+0.2), y = (seq(1, dim(Terrestrial_Temperature_Trait_table)[1], 1)+0.4)), size = 3.5)
 
-density_terrestrial_temperature_trait #(400x400)
+density_terrestrial_temperature_trait
 
 # Preparing Graph - Part 1
 
@@ -5504,7 +5504,7 @@ density_terrestrial_temperature_trait_1 <- Terrestrial_Temperature_Trait_table_1
                                                                    paste(format(round(posterior.mode(exp(as.mcmc(b_abs_terrestrial_temperature_trait_behavioural))-1)*100, 2), nsmall = 2), "%")), 
                                                          x = rev(Terrestrial_Temperature_Trait_table_1$estimate+0.25), y = (seq(1, dim(Terrestrial_Temperature_Trait_table_1)[1], 1)+0.4)), size = 3.5)
 
-density_terrestrial_temperature_trait_1 #(400x240)
+density_terrestrial_temperature_trait_1
 
 # Preparing Graph - Part 2
 
@@ -5580,7 +5580,7 @@ density_terrestrial_temperature_trait_2 <- Terrestrial_Temperature_Trait_table_2
                                                                    paste(format(round(posterior.mode(exp(as.mcmc(b_abs_terrestrial_temperature_trait_morphology))-1)*100, 2), nsmall = 2), "%")), 
                                                          x = rev(Terrestrial_Temperature_Trait_table_2$estimate+0.25), y = (seq(1, dim(Terrestrial_Temperature_Trait_table_2)[1], 1)+0.4)), size = 3.5)
 
-density_terrestrial_temperature_trait_2 #(400x240)
+density_terrestrial_temperature_trait_2
 
 ##### Aquatic and Temperature Model #####
 Aquatic_Temperature_Data <- data %>% filter(Ecosystem == "Aquatic" & Type == "Temperature")
@@ -5590,7 +5590,7 @@ Aquatic_Temperature_A <- as.data.frame(A)
 Aquatic_Temperature_A <- Aquatic_Temperature_A[c(Aquatic_Temperature_Species$phylo), c(Aquatic_Temperature_Species$phylo)]
 Aquatic_Temperature_A <- as.matrix(Aquatic_Temperature_A)
 
-system.time(  # 2ish minutes
+system.time(
   aquatic_temperature <- brms::brm(Effect_Size_Type_Adjusted | se(sqrt(Variance_Type_Adjusted)) 
                                    ~ 1 + (1|gr(phylo, cov = A)) + (1|Study_ID) + (1|obs),
                                    data = Aquatic_Temperature_Data,
@@ -5603,8 +5603,8 @@ system.time(  # 2ish minutes
                                    thin = 5,
                                    prior = priors,
                                    control = list(adapt_delta = 0.99, max_treedepth = 15),
-                                   file = "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/aquatic_temperature_model",
-                                   file_refit = "on_change"))
+                                   file = "./aquatic_temperature_model",
+                                   file_refit = "always"))
 
 ####-- Bayesian Model/Data Output --#####
 
@@ -5655,7 +5655,7 @@ Aquatic_Temperature_Plasticity_A <- Aquatic_Temperature_Plasticity_A[c(Aquatic_T
 Aquatic_Temperature_Plasticity_A <- as.matrix(Aquatic_Temperature_Plasticity_A)
 
 
-system.time(  # still getting minimum divergent transitions
+system.time(
   aquatic_temperature_plastic <- brms::brm(Effect_Size_Type_Adjusted | se(sqrt(Variance_Type_Adjusted)) 
                                            ~ 1 + (1|gr(phylo, cov = A)) + (1|Study_ID) + (1|obs),
                                            data = Aquatic_Temperature_Plasticity_Data,
@@ -5668,8 +5668,8 @@ system.time(  # still getting minimum divergent transitions
                                            thin = 5,
                                            prior = priors,
                                            control = list(adapt_delta = 0.99, max_treedepth = 15),
-                                           file = "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/aquatic_temperature_plastic_model",
-                                           file_refit = "on_change"))
+                                           file = "./aquatic_temperature_plastic_model",
+                                           file_refit = "always"))
 
 ####-- Bayesian Model/Data Output --####
 
@@ -5776,7 +5776,7 @@ density_aquatic_temperature_plasticity <- Aquatic_Temperature_Plasticity_table %
                                           geom_label(aes(label=c(paste(format(round(posterior.mode(exp(as.mcmc(b_abs_aquatic_temperature_plastic))-1)*100, 2), nsmall = 2), "%")), 
                                                          x = rev(Aquatic_Temperature_Plasticity_table$estimate+0.2), y = (seq(1, dim(Aquatic_Temperature_Plasticity_table)[1], 1)+0.4)), size = 3.5)
 
-density_aquatic_temperature_plasticity #(400x160)
+density_aquatic_temperature_plasticity
 
 ##### Aquatic and Temperature Model - Trait Category Meta-regression #####
 Aquatic_Temperature_Trait_Exploration <- Aquatic_Temperature_Data %>% select("Category") %>% table() %>% data.frame()
@@ -5802,7 +5802,7 @@ Aquatic_Temperature_Trait_A <- as.data.frame(A)
 Aquatic_Temperature_Trait_A <- Aquatic_Temperature_Trait_A[c(Aquatic_Temperature_Trait_Species$phylo), c(Aquatic_Temperature_Trait_Species$phylo)]
 Aquatic_Temperature_Trait_A <- as.matrix(Aquatic_Temperature_Trait_A)
 
-system.time(  # 1ish minutes
+system.time(
   aquatic_temperature_trait <- brms::brm(Effect_Size_Type_Adjusted | se(sqrt(Variance_Type_Adjusted)) 
                                          ~ Category + (1|gr(phylo, cov = A)) + (1|Study_ID) + (1|gr(obs, by = Category, cor = FALSE)),
                                          data = Aquatic_Temperature_Trait_Data,
@@ -5815,8 +5815,8 @@ system.time(  # 1ish minutes
                                          thin = 5,
                                          prior = priors,
                                          control = list(adapt_delta = 0.99, max_treedepth = 15),
-                                         file = "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/aquatic_temperature_trait_model",
-                                         file_refit = "on_change"))
+                                         file = "./aquatic_temperature_trait_model",
+                                         file_refit = "always"))
 
 ####-- Bayesian Model/Data Output --####
 
@@ -5839,7 +5839,7 @@ aquatic_temperature_trait_means <- apply(b_aquatic_temperature_trait, 2, mean)
 aquatic_temperature_trait_cis <- apply(b_aquatic_temperature_trait, 2, function(x) HPDinterval(as.mcmc(x)))
 aquatic_temperature_trait_pMCMC <- apply(b_aquatic_temperature_trait, 2, function(x) 2*(1 - max(table(x<0) / length(x))))
 
-# Absolute magnitude - Check sd numbers based on what random effects you have added.
+# Absolute magnitude
 b_abs_aquatic_temperature_trait_biochem <- folded_norm(b_aquatic_temperature_trait$b_BiochemicalAssay, sqrt(rowSums(sd_aquatic_temperature_trait[,c("sd_phylo__Intercept", "sd_Study_ID__Intercept")]^2 + sd_aquatic_temperature_trait[, "sd_BiochemicalAssay"]^2)))
 b_abs_aquatic_temperature_trait_tolerance <- folded_norm(b_aquatic_temperature_trait$b_Tolerance, sqrt(rowSums(sd_aquatic_temperature_trait[,c("sd_phylo__Intercept", "sd_Study_ID__Intercept")]^2 + sd_aquatic_temperature_trait[, "sd_Tolerance"]^2)))
 mean_abs_b_aquatic_temperature_trait_biochem <- mean(b_abs_aquatic_temperature_trait_biochem)
@@ -5938,7 +5938,7 @@ density_aquatic_temperature_trait <- Aquatic_Temperature_Trait_table %>% mutate(
                                                             paste(format(round(posterior.mode(exp(as.mcmc(b_abs_aquatic_temperature_trait_biochem))-1)*100, 2), nsmall = 2), "%")), 
                                                 x = rev(Aquatic_Temperature_Trait_table$estimate+0.2), y = (seq(1, dim(Aquatic_Temperature_Trait_table)[1], 1)+0.4)), size = 3.5)
 
-density_aquatic_temperature_trait #(400x240)
+density_aquatic_temperature_trait
 
 # Preparing Graph - Part 1
 
@@ -6007,7 +6007,7 @@ density_aquatic_temperature_trait_1 <- Aquatic_Temperature_Trait_table_1 %>% mut
                                        geom_label(aes(label=c(paste(format(round(posterior.mode(exp(as.mcmc(b_abs_aquatic_temperature_trait_biochem))-1)*100, 2), nsmall = 2), "%")), 
                                                      x = rev(Aquatic_Temperature_Trait_table_1$estimate+0.2), y = (seq(1, dim(Aquatic_Temperature_Trait_table_1)[1], 1)+0.4)), size = 3.5)
 
-density_aquatic_temperature_trait_1 #(400x160)
+density_aquatic_temperature_trait_1
 
 # Preparing Graph - Part 2
 
@@ -6076,7 +6076,7 @@ density_aquatic_temperature_trait_2 <- Aquatic_Temperature_Trait_table_2 %>% mut
                                        geom_label(aes(label=c(paste(format(round(posterior.mode(exp(as.mcmc(b_abs_aquatic_temperature_trait_tolerance))-1)*100, 2), nsmall = 2), "%")), 
                                                      x = rev(Aquatic_Temperature_Trait_table_2$estimate+0.2), y = (seq(1, dim(Aquatic_Temperature_Trait_table_2)[1], 1)+0.4)), size = 3.5)
 
-density_aquatic_temperature_trait_2 #(400x160)
+density_aquatic_temperature_trait_2
 
 ##### Aquatic and Salinity Model #####
 Aquatic_Salinity_Data <- data %>% filter(Ecosystem == "Aquatic" & Type == "Salinity" & Study_ID != 37)
@@ -6086,7 +6086,7 @@ Aquatic_Salinity_A <- as.data.frame(A)
 Aquatic_Salinity_A <- Aquatic_Salinity_A[c(Aquatic_Salinity_Species$phylo), c(Aquatic_Salinity_Species$phylo)]
 Aquatic_Salinity_A <- as.matrix(Aquatic_Salinity_A)
 
-system.time(  # 2ish minutes
+system.time(
   aquatic_salinity <- brms::brm(Effect_Size_Type_Adjusted | se(sqrt(Variance_Type_Adjusted)) 
                                 ~ 1 + (1|gr(phylo, cov = A)) + (1|Study_ID) + (1|obs),
                                 data = Aquatic_Salinity_Data,
@@ -6099,8 +6099,8 @@ system.time(  # 2ish minutes
                                 thin = 5,
                                 prior = priors,
                                 control = list(adapt_delta = 0.99, max_treedepth = 15),
-                                file = "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/aquatic_salinity_model",
-                                file_refit = "on_change"))
+                                file = "./aquatic_salinity_model",
+                                file_refit = "always"))
 
 ####-- Bayesian Model/Data Output --#####
 
@@ -6151,7 +6151,7 @@ Aquatic_Salinity_Plasticity_A <- Aquatic_Salinity_Plasticity_A[c(Aquatic_Salinit
 Aquatic_Salinity_Plasticity_A <- as.matrix(Aquatic_Salinity_Plasticity_A)
 
 
-system.time(  # still getting minimum divergent transitions
+system.time(
   aquatic_salinity_plastic <- brms::brm(Effect_Size_Type_Adjusted | se(sqrt(Variance_Type_Adjusted)) 
                                         ~ 1 + (1|gr(phylo, cov = A)) + (1|Study_ID) + (1|obs),
                                         data = Aquatic_Salinity_Plasticity_Data,
@@ -6164,8 +6164,8 @@ system.time(  # still getting minimum divergent transitions
                                         thin = 5,
                                         prior = priors,
                                         control = list(adapt_delta = 0.99, max_treedepth = 15),
-                                        file = "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/aquatic_salinity_plastic_model",
-                                        file_refit = "on_change"))
+                                        file = "./aquatic_salinity_plastic_model",
+                                        file_refit = "always"))
 
 ####-- Bayesian Model/Data Output --####
 
@@ -6267,7 +6267,7 @@ density_aquatic_salinity_plasticity <- Aquatic_Salinity_Plasticity_table %>% mut
                                        geom_label(aes(label=c(paste(format(round(posterior.mode(exp(as.mcmc(b_abs_aquatic_salinity_plastic))-1)*100, 2), nsmall = 2), "%")), 
                                                       x = rev(Aquatic_Salinity_Plasticity_table$estimate+0.2), y = (seq(1, dim(Aquatic_Salinity_Plasticity_table)[1], 1)+0.4)), size = 3.5)
 
-density_aquatic_salinity_plasticity #(400x160)
+density_aquatic_salinity_plasticity
 
 ##### Aquatic and Salinity Model - Trait Category Meta-regression #####
 Aquatic_Salinity_Trait_Exploration <- Aquatic_Salinity_Data %>% select("Category") %>% table() %>% data.frame()
@@ -6292,7 +6292,7 @@ Aquatic_Salinity_Trait_A <- as.data.frame(A)
 Aquatic_Salinity_Trait_A <- Aquatic_Salinity_Trait_A[c(Aquatic_Salinity_Trait_Species$phylo), c(Aquatic_Salinity_Trait_Species$phylo)]
 Aquatic_Salinity_Trait_A <- as.matrix(Aquatic_Salinity_Trait_A)
 
-system.time(  # 1ish minutes
+system.time(
   aquatic_salinity_trait <- brms::brm(Effect_Size_Type_Adjusted | se(sqrt(Variance_Type_Adjusted)) 
                                       ~ 1 + (1|gr(phylo, cov = A)) + (1|Study_ID) + (1|obs),
                                       data = Aquatic_Salinity_Trait_Data,
@@ -6305,8 +6305,8 @@ system.time(  # 1ish minutes
                                       thin = 5,
                                       prior = priors,
                                       control = list(adapt_delta = 0.99, max_treedepth = 15),
-                                      file = "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/aquatic_salinity_trait_model",
-                                      file_refit = "on_change"))
+                                      file = "./aquatic_salinity_trait_model",
+                                      file_refit = "always"))
 
 ####-- Bayesian Model/Data Output --####
 
@@ -6408,7 +6408,7 @@ density_aquatic_salinity_trait <- Aquatic_Salinity_Trait_table %>% mutate(name =
                                   geom_label(aes(label=c(paste(format(round(posterior.mode(exp(as.mcmc(b_abs_aquatic_salinity_trait))-1)*100, 2), nsmall = 2), "%")), 
                                                  x = rev(Aquatic_Salinity_Trait_table$estimate+0.25), y = (seq(1, dim(Aquatic_Salinity_Trait_table)[1], 1)+0.4)), size = 3.5)
 
-density_aquatic_salinity_trait #(400x160)
+density_aquatic_salinity_trait
 
 ##### Meta-analytic Models (Intercept Only) - Subset Graph #####
 
@@ -6555,7 +6555,7 @@ density_intercept <- Intercept_table %>% mutate(name = fct_relevel(name, Interce
                                             paste(format(round(posterior.mode(exp(as.mcmc(b_abs))-1)*100, 2), nsmall = 2), "%")), 
                                 x = rev(Intercept_table$estimate+0.2), y = (seq(1, dim(Intercept_table)[1], 1)+0.4)), size = 3.5)
 
-density_intercept #(400x640)
+density_intercept
 
 # Preparing Data - Part 1
 
@@ -6653,7 +6653,7 @@ density_intercept_1 <- Intercept_table_1 %>% mutate(name = fct_relevel(name, Int
                                                paste(format(round(posterior.mode(exp(as.mcmc(b_abs))-1)*100, 2), nsmall = 2), "%")), 
                                      x = rev(Intercept_table_1$estimate+0.2), y = (seq(1, dim(Intercept_table_1)[1], 1)+0.4)), size = 3.5)
 
-density_intercept_1 #(400x320)
+density_intercept_1
 
 # Preparing Data - Part 2
 
@@ -6763,11 +6763,11 @@ density_intercept_2 <- Intercept_table_2 %>% mutate(name = fct_relevel(name, Int
                                               paste(format(round(posterior.mode(exp(as.mcmc(b_abs_temperature))-1)*100, 2), nsmall = 2), "%")), 
                                      x = rev(Intercept_table_2$estimate+0.2), y = (seq(1, dim(Intercept_table_2)[1], 1)+0.4)), size = 3.5)
 
-density_intercept_2 #(400x400)
+density_intercept_2
 
 ##### Supplementary Material Table #####
 # Consistency Changes - Studies, Species and Effect Sizes Counts
-Pre_Data <- read.csv("./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/data/Pre_Data.csv")
+Pre_Data <- read.csv("./Pre_Data.csv")
 
 Measurement_Studies <- Pre_Data %>% select("Study_ID", "Measurement") %>% table() %>% data.frame() %>% 
                        filter(`Freq` != 0) %>% select("Measurement") %>% table() %>% data.frame()
@@ -6787,7 +6787,7 @@ Measurement_Final_Counts <- Measurement_Studies %>%
                             left_join(Measurement_Species, by = "Measurement") %>% 
                             left_join(Measurement_Effects, by = "Measurement")
 
-write.csv(Measurement_Final_Counts, file = "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/supplementary_material/Measurement_Final_Counts.csv", row.names = FALSE)
+write.csv(Measurement_Final_Counts, file = "./Measurement_Final_Counts.csv", row.names = FALSE)
 
 # Category - Studies, Species and Effect Sizes Counts
 Measurement_Category_Studies <- data %>% select("Study_ID", "Category") %>% table() %>% data.frame() %>% 
@@ -6808,7 +6808,7 @@ Measurement_Category_Final_Counts <- Measurement_Category_Studies %>%
                                      left_join(Measurement_Category_Species, by = "Category") %>% 
                                      left_join(Measurement_Category_Effects, by = "Category")
 
-write.csv(Measurement_Category_Final_Counts, file = "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/supplementary_material/Measurement_Category_Final_Counts.csv", row.names = FALSE)
+write.csv(Measurement_Category_Final_Counts, file = "./Measurement_Category_Final_Counts.csv", row.names = FALSE)
 
 # Measurements and their Categories
 Behaviour_Name <- data %>% select("Study_ID", "Category", "Measurement") %>% filter(`Category` == "Behavioural") %>%
@@ -7247,32 +7247,32 @@ Raw_Aquatic_Salinity_Trait <- data.frame("Phenotypic Trait Categories" = c("Bioc
                                          "CI Low" = c(ci.abs_aquatic_salinity_trait[1]), 
                                          "CI High" = c(ci.abs_aquatic_salinity_trait[2]))
 
-write.csv(Raw_Overall, file = "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/supplementary_material/Raw_Overall.csv", row.names = FALSE)
-write.csv(Raw_Plasticity, file = "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/supplementary_material/Raw_Plasticity.csv", row.names = FALSE)
-write.csv(Raw_Trait, file = "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/supplementary_material/Raw_Trait.csv", row.names = FALSE)
-write.csv(Raw_Taxonomy, file = "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/supplementary_material/Raw_Taxonomy.csv", row.names = FALSE)
-write.csv(Raw_Treatment, file = "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/supplementary_material/Raw_Treatment.csv", row.names = FALSE)
-write.csv(Raw_Terrestrial, file = "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/supplementary_material/Raw_Terrestrial.csv", row.names = FALSE)
-write.csv(Raw_Terrestrial_Plasticity, file = "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/supplementary_material/Raw_Terrestrial_Plasticity.csv", row.names = FALSE)
-write.csv(Raw_Terrestrial_Trait, file = "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/supplementary_material/Raw_Terrestrial_Trait.csv", row.names = FALSE)
-write.csv(Raw_Terrestrial_Treatment, file = "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/supplementary_material/Raw_Terrestrial_Treatment.csv", row.names = FALSE)
-write.csv(Raw_Aquatic, file = "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/supplementary_material/Raw_Aquatic.csv", row.names = FALSE)
-write.csv(Raw_Aquatic_Plasticity, file = "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/supplementary_material/Raw_Aquatic_Plasticity.csv", row.names = FALSE)
-write.csv(Raw_Aquatic_Trait, file = "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/supplementary_material/Raw_Aquatic_Trait.csv", row.names = FALSE)
-write.csv(Raw_Aquatic_Treatment, file = "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/supplementary_material/Raw_Aquatic_Treatment.csv", row.names = FALSE)
-write.csv(Raw_Temperature, file = "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/supplementary_material/Raw_Temperature.csv", row.names = FALSE)
-write.csv(Raw_Temperature_Plasticity, file = "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/supplementary_material/Raw_Temperature_Plasticity.csv", row.names = FALSE)
-write.csv(Raw_Temperature_Trait, file = "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/supplementary_material/Raw_Temperature_Trait.csv", row.names = FALSE)
-write.csv(Raw_Temperature_Taxonomy, file = "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/supplementary_material/Raw_Temperature_Taxonomy.csv", row.names = FALSE)
-write.csv(Raw_Terrestrial_Temperature, file = "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/supplementary_material/Raw_Terrestrial_Temperature.csv", row.names = FALSE)
-write.csv(Raw_Terrestrial_Temperature_Plasticity, file = "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/supplementary_material/Raw_Terrestrial_Temperature_Plasticity.csv", row.names = FALSE)
-write.csv(Raw_Terrestrial_Temperature_Trait, file = "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/supplementary_material/Raw_Terrestrial_Temperature_Trait.csv", row.names = FALSE)
-write.csv(Raw_Aquatic_Temperature, file = "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/supplementary_material/Raw_Aquatic_Temperature.csv", row.names = FALSE)
-write.csv(Raw_Aquatic_Temperature_Plasticity, file = "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/supplementary_material/Raw_Aquatic_Temperature_Plasticity.csv", row.names = FALSE)
-write.csv(Raw_Aquatic_Temperature_Trait, file = "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/supplementary_material/Raw_Aquatic_Temperature_Trait.csv", row.names = FALSE)
-write.csv(Raw_Aquatic_Salinity, file = "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/supplementary_material/Raw_Aquatic_Salinity.csv", row.names = FALSE)
-write.csv(Raw_Aquatic_Salinity_Plasticity, file = "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/supplementary_material/Raw_Aquatic_Salinity_Plasticity.csv", row.names = FALSE)
-write.csv(Raw_Aquatic_Salinity_Trait, file = "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/supplementary_material/Raw_Aquatic_Salinity_Trait.csv", row.names = FALSE)
+write.csv(Raw_Overall, file = "./Raw_Overall.csv", row.names = FALSE)
+write.csv(Raw_Plasticity, file = "./Raw_Plasticity.csv", row.names = FALSE)
+write.csv(Raw_Trait, file = "./Raw_Trait.csv", row.names = FALSE)
+write.csv(Raw_Taxonomy, file = "./Raw_Taxonomy.csv", row.names = FALSE)
+write.csv(Raw_Treatment, file = "./Raw_Treatment.csv", row.names = FALSE)
+write.csv(Raw_Terrestrial, file = "./Raw_Terrestrial.csv", row.names = FALSE)
+write.csv(Raw_Terrestrial_Plasticity, file = "./Raw_Terrestrial_Plasticity.csv", row.names = FALSE)
+write.csv(Raw_Terrestrial_Trait, file = "./Raw_Terrestrial_Trait.csv", row.names = FALSE)
+write.csv(Raw_Terrestrial_Treatment, file = "./Raw_Terrestrial_Treatment.csv", row.names = FALSE)
+write.csv(Raw_Aquatic, file = "./Raw_Aquatic.csv", row.names = FALSE)
+write.csv(Raw_Aquatic_Plasticity, file = "./Raw_Aquatic_Plasticity.csv", row.names = FALSE)
+write.csv(Raw_Aquatic_Trait, file = "./Raw_Aquatic_Trait.csv", row.names = FALSE)
+write.csv(Raw_Aquatic_Treatment, file = "./Raw_Aquatic_Treatment.csv", row.names = FALSE)
+write.csv(Raw_Temperature, file = "./Raw_Temperature.csv", row.names = FALSE)
+write.csv(Raw_Temperature_Plasticity, file = "./Raw_Temperature_Plasticity.csv", row.names = FALSE)
+write.csv(Raw_Temperature_Trait, file = "./Raw_Temperature_Trait.csv", row.names = FALSE)
+write.csv(Raw_Temperature_Taxonomy, file = "./Raw_Temperature_Taxonomy.csv", row.names = FALSE)
+write.csv(Raw_Terrestrial_Temperature, file = "./Raw_Terrestrial_Temperature.csv", row.names = FALSE)
+write.csv(Raw_Terrestrial_Temperature_Plasticity, file = "./Raw_Terrestrial_Temperature_Plasticity.csv", row.names = FALSE)
+write.csv(Raw_Terrestrial_Temperature_Trait, file = "./Raw_Terrestrial_Temperature_Trait.csv", row.names = FALSE)
+write.csv(Raw_Aquatic_Temperature, file = "./Raw_Aquatic_Temperature.csv", row.names = FALSE)
+write.csv(Raw_Aquatic_Temperature_Plasticity, file = "./Raw_Aquatic_Temperature_Plasticity.csv", row.names = FALSE)
+write.csv(Raw_Aquatic_Temperature_Trait, file = "./Raw_Aquatic_Temperature_Trait.csv", row.names = FALSE)
+write.csv(Raw_Aquatic_Salinity, file = "./Raw_Aquatic_Salinity.csv", row.names = FALSE)
+write.csv(Raw_Aquatic_Salinity_Plasticity, file = "./Raw_Aquatic_Salinity_Plasticity.csv", row.names = FALSE)
+write.csv(Raw_Aquatic_Salinity_Trait, file = "./Raw_Aquatic_Salinity_Trait.csv", row.names = FALSE)
 
 
 # Heterogeneity Tables
@@ -7394,8 +7394,8 @@ Heterogeneity_Treatment <- data.frame("Models" = c("Overall","Terrestrial", "Aqu
                                       "Total" = c(overall_i2_treatment["i2_total", 1], terrestrial_i2_treatment["i2_total", 1], 
                                                   aquatic_i2_treatment["i2_total", 1]))
 
-write.csv(Heterogeneity_Subsets, file = "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/supplementary_material/Heterogeneity_Subsets.csv", row.names = FALSE)
-write.csv(Heterogeneity_Plasticity, file = "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/supplementary_material/Heterogeneity_Plasticity.csv", row.names = FALSE)
-write.csv(Heterogeneity_Trait, file = "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/supplementary_material/Heterogeneity_Trait.csv", row.names = FALSE)
-write.csv(Heterogeneity_Tax, file = "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/supplementary_material/Heterogeneity_Tax.csv", row.names = FALSE)
-write.csv(Heterogeneity_Treatment, file = "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/supplementary_material/Heterogeneity_Treatment.csv", row.names = FALSE)
+write.csv(Heterogeneity_Subsets, file = "./Heterogeneity_Subsets.csv", row.names = FALSE)
+write.csv(Heterogeneity_Plasticity, file = "./Heterogeneity_Plasticity.csv", row.names = FALSE)
+write.csv(Heterogeneity_Trait, file = "./Heterogeneity_Trait.csv", row.names = FALSE)
+write.csv(Heterogeneity_Tax, file = "./Heterogeneity_Tax.csv", row.names = FALSE)
+write.csv(Heterogeneity_Treatment, file = "./Heterogeneity_Treatment.csv", row.names = FALSE)
