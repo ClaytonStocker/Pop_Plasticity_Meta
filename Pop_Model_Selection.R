@@ -11,141 +11,141 @@ pacman::p_load(tidyverse, readxl, gtsummary, dplyr,
 ##### Model Selection #####
 # Importing Data Set
 
-data <- read.csv("./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/data/Final_Data.csv")
+data <- read.csv("./Final_Data.csv")
 data$obs <- 1:nrow(data)
 data$Scientific_Name <- sub(" ", "_", data$Scientific_Name)
 data$phylo <- data$Scientific_Name
 
 # Phylogenetic covariance matrix
-tree <- ape::read.tree("./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/phylogeny/tree")
+tree <- ape::read.tree("./tree")
 phy <- ape::compute.brlen(tree, method = "Grafen", power = 1)
 A <- ape::vcv.phylo(phy)
 row.names(A) <- colnames(A) <- row.names(A)
 A_cor <- ape::vcv.phylo(phy, corr = TRUE)
 
 # All Possible Random Effects
-run <- FALSE
-system.time( # 10ish minutes
+run <- TRUE
+system.time(
 if(run){
   All <- metafor::rma.mv(Effect_Size_Adjusted ~ 1, V = Variance_Adjusted, test = "t", dfs = "contain",
                          random = list(~1|phylo, ~1|Study_ID, ~1|obs, 
                                        ~1|Scientific_Name, ~1|Shared_Animal_Number, ~1|Measurement), 
                          R = list(phylo=A_cor), data = data, method = "ML", sparse = TRUE, 
                          control=list(rel.tol=1e-9))
-  saveRDS(All, "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/All.rds")
+  saveRDS(All, "./All.rds")
 } else {
-  All <- readRDS("./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/All.rds")})
+  All <- readRDS("./All.rds")})
 
 All_i2 <- data.frame(round(orchaRd::i2_ml(All), 2))
 All_aic <- fitstats(All)
 
 # No Scientific Name Random Effect
-run <- FALSE
-system.time( # 9ish minutes
+run <- TRUE
+system.time(
   if(run){
     No_Species <- metafor::rma.mv(Effect_Size_Adjusted ~ 1, V = Variance_Adjusted, test = "t", dfs = "contain",
                                   random = list(~1|phylo, ~1|Study_ID, ~1|obs, 
                                                 ~1|Shared_Animal_Number, ~1|Measurement), 
                                   R = list(phylo=A_cor), data = data, method = "ML", sparse = TRUE, 
                                   control=list(rel.tol=1e-9))
-    saveRDS(No_Species, "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/No_Species.rds")
+    saveRDS(No_Species, "./No_Species.rds")
   } else {
-    No_Species <- readRDS("./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/No_Species.rds")})
+    No_Species <- readRDS("./No_Species.rds")})
 
 No_Species_i2 <- data.frame(round(orchaRd::i2_ml(No_Species), 2))
 No_Species_aic <- fitstats(No_Species)
 
 # No Shared Animal Number Random Effect
-run <- FALSE
-system.time( # 8ish minutes
+run <- TRUE
+system.time(
   if(run){
     No_Animal <- metafor::rma.mv(Effect_Size_Adjusted ~ 1, V = Variance_Adjusted, test = "t", dfs = "contain",
                                  random = list(~1|phylo, ~1|Study_ID, ~1|obs, 
                                                ~1|Scientific_Name, ~1|Measurement), 
                                  R = list(phylo=A_cor), data = data, method = "ML", sparse = TRUE, 
                                  control=list(rel.tol=1e-9))
-    saveRDS(No_Animal, "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/No_Animal.rds")
+    saveRDS(No_Animal, "./No_Animal.rds")
   } else {
-    No_Animal <- readRDS("./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/No_Animal.rds")})
+    No_Animal <- readRDS("./No_Animal.rds")})
 
 No_Animal_i2 <- data.frame(round(orchaRd::i2_ml(No_Animal), 2))
 No_Animal_aic <- fitstats(No_Animal)
 
 # No Measurement Random Effect
-run <- FALSE
-system.time( # 4ish minutes
+run <- TRUE
+system.time(
   if(run){
     No_Measurement <- metafor::rma.mv(Effect_Size_Adjusted ~ 1, V = Variance_Adjusted, test = "t", dfs = "contain",
                                       random = list(~1|phylo, ~1|Study_ID, ~1|obs, 
                                                     ~1|Scientific_Name, ~1|Shared_Animal_Number), 
                                       R = list(phylo=A_cor), data = data, method = "ML", sparse = TRUE, 
                                       control=list(rel.tol=1e-9))
-    saveRDS(No_Measurement, "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/No_Measurement.rds")
+    saveRDS(No_Measurement, "./No_Measurement.rds")
   } else {
-    No_Measurement <- readRDS("./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/No_Measurement.rds")})
+    No_Measurement <- readRDS("./No_Measurement.rds")})
 
 No_Measurement_i2 <- data.frame(round(orchaRd::i2_ml(No_Measurement), 2))
 No_Measurement_aic <- fitstats(No_Measurement)
 
 # No Scientific Name or Shared Animal Number Random Effects
-run <- FALSE
-system.time( # 7ish minutes
+run <- TRUE
+system.time(
   if(run){
     No_Species_Animal <- metafor::rma.mv(Effect_Size_Adjusted ~ 1, V = Variance_Adjusted, test = "t", dfs = "contain",
                                          random = list(~1|phylo, ~1|Study_ID, ~1|obs, 
                                                        ~1|Measurement), 
                                          R = list(phylo=A_cor), data = data, method = "ML", sparse = TRUE, 
                                          control=list(rel.tol=1e-9))
-    saveRDS(No_Species_Animal, "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/No_Species_Animal.rds")
+    saveRDS(No_Species_Animal, "./No_Species_Animal.rds")
   } else {
-    No_Species_Animal <- readRDS("./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/No_Species_Animal.rds")})
+    No_Species_Animal <- readRDS("./No_Species_Animal.rds")})
 
 No_Species_Animal_i2 <- data.frame(round(orchaRd::i2_ml(No_Species_Animal), 2))
 No_Species_Animal_aic <- fitstats(No_Species_Animal)
 
 # No Scientific Name or Measurement Random Effects
-run <- FALSE
-system.time( # 3ish minutes
+run <- TRUE
+system.time(
   if(run){
     No_Species_Measurement <- metafor::rma.mv(Effect_Size_Adjusted ~ 1, V = Variance_Adjusted, test = "t", dfs = "contain",
                                               random = list(~1|phylo, ~1|Study_ID, ~1|obs, 
                                                             ~1|Shared_Animal_Number), 
                                               R = list(phylo=A_cor), data = data, method = "ML", sparse = TRUE, 
                                               control=list(rel.tol=1e-9))
-    saveRDS(No_Species_Measurement, "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/No_Species_Measurement.rds")
+    saveRDS(No_Species_Measurement, "./No_Species_Measurement.rds")
   } else {
-    No_Species_Measurement <- readRDS("./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/No_Species_Measurement.rds")})
+    No_Species_Measurement <- readRDS("./No_Species_Measurement.rds")})
 
 No_Species_Measurement_i2 <- data.frame(round(orchaRd::i2_ml(No_Species_Measurement), 2))
 No_Species_Measurement_aic <- fitstats(No_Species_Measurement)
 
 # No Shared Animal Number or Measurement Random Effects
-run <- FALSE
-system.time( # 3ish minutes
+run <- TRUE
+system.time(
   if(run){
     No_Animal_Measurement <- metafor::rma.mv(Effect_Size_Adjusted ~ 1, V = Variance_Adjusted, test = "t", dfs = "contain",
                                              random = list(~1|phylo, ~1|Study_ID, ~1|obs, 
                                                            ~1|Scientific_Name), 
                                              R = list(phylo=A_cor), data = data, method = "ML", sparse = TRUE, 
                                              control=list(rel.tol=1e-9))
-    saveRDS(No_Animal_Measurement, "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/No_Animal_Measurement.rds")
+    saveRDS(No_Animal_Measurement, "./No_Animal_Measurement.rds")
   } else {
-    No_Animal_Measurement <- readRDS("./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/No_Animal_Measurement.rds")})
+    No_Animal_Measurement <- readRDS("./No_Animal_Measurement.rds")})
 
 No_Animal_Measurement_i2 <- data.frame(round(orchaRd::i2_ml(No_Animal_Measurement), 2))
 No_Animal_Measurement_aic <- fitstats(No_Animal_Measurement)
 
 # The Base Model
-run <- FALSE
-system.time( # 2ish minutes
+run <- TRUE
+system.time(
   if(run){
     Base <- metafor::rma.mv(Effect_Size_Adjusted ~ 1, V = Variance_Adjusted, test = "t", dfs = "contain",
                             random = list(~1|phylo, ~1|Study_ID, ~1|obs), 
                             R = list(phylo=A_cor), data = data, method = "ML", sparse = TRUE, 
                             control=list(rel.tol=1e-9))
-    saveRDS(Base, "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/Base.rds")
+    saveRDS(Base, "./Base.rds")
   } else {
-    Base <- readRDS("./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/Base.rds")})
+    Base <- readRDS("./Base.rds")})
 
 Base_i2 <- data.frame(round(orchaRd::i2_ml(Base), 2))
 Base_aic <- fitstats(Base)
@@ -195,128 +195,128 @@ Temp_A_cor <- Temp_A_cor[c(Temp_Species$phylo), c(Temp_Species$phylo)]
 Temp_A_cor <- as.matrix(Temp_A_cor)
 
 # All Possible Random Effects
-run <- FALSE
-system.time( # 1ish minutes
+run <- TRUE
+system.time(
   if(run){
     All_Temp <- metafor::rma.mv(Effect_Size_Type_Adjusted ~ 1, V = Variance_Type_Adjusted, test = "t", dfs = "contain",
                                 random = list(~1|phylo, ~1|Study_ID, ~1|obs, 
                                               ~1|Scientific_Name, ~1|Shared_Animal_Number, ~1|Measurement), 
                                 R = list(phylo=Temp_A_cor), data = Temp_Subset_Data, method = "ML", sparse = TRUE, 
                                 control=list(rel.tol=1e-9))
-    saveRDS(All_Temp, "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/All_Temp.rds")
+    saveRDS(All_Temp, "./All_Temp.rds")
   } else {
-    All_Temp <- readRDS("./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/All_Temp.rds")})
+    All_Temp <- readRDS("./All_Temp.rds")})
 
 All_Temp_i2 <- data.frame(round(orchaRd::i2_ml(All_Temp), 2))
 All_Temp_aic <- fitstats(All_Temp)
 
 # No Scientific Name Random Effect
-run <- FALSE
-system.time( # 1ish minutes
+run <- TRUE
+system.time(
   if(run){
     No_Species_Temp <- metafor::rma.mv(Effect_Size_Type_Adjusted ~ 1, V = Variance_Type_Adjusted, test = "t", dfs = "contain",
                                        random = list(~1|phylo, ~1|Study_ID, ~1|obs, 
                                                      ~1|Shared_Animal_Number, ~1|Measurement), 
                                        R = list(phylo=Temp_A_cor), data = Temp_Subset_Data, method = "ML", sparse = TRUE, 
                                        control=list(rel.tol=1e-9))
-    saveRDS(No_Species_Temp, "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/No_Species_Temp.rds")
+    saveRDS(No_Species_Temp, "./No_Species_Temp.rds")
   } else {
-    No_Species_Temp <- readRDS("./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/No_Species_Temp.rds")})
+    No_Species_Temp <- readRDS("./No_Species_Temp.rds")})
 
 No_Species_Temp_i2 <- data.frame(round(orchaRd::i2_ml(No_Species_Temp), 2))
 No_Species_Temp_aic <- fitstats(No_Species_Temp)
 
 # No Shared Animal Number Random Effect
-run <- FALSE
-system.time( # 1ish minutes
+run <- TRUE
+system.time(
   if(run){
     No_Animal_Temp <- metafor::rma.mv(Effect_Size_Type_Adjusted ~ 1, V = Variance_Type_Adjusted, test = "t", dfs = "contain",
                                       random = list(~1|phylo, ~1|Study_ID, ~1|obs, 
                                                     ~1|Scientific_Name, ~1|Measurement), 
                                       R = list(phylo=Temp_A_cor), data = Temp_Subset_Data, method = "ML", sparse = TRUE, 
                                       control=list(rel.tol=1e-9))
-    saveRDS(No_Animal_Temp, "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/No_Animal_Temp.rds")
+    saveRDS(No_Animal_Temp, "./No_Animal_Temp.rds")
   } else {
-    No_Animal_Temp <- readRDS("./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/No_Animal_Temp.rds")})
+    No_Animal_Temp <- readRDS("./No_Animal_Temp.rds")})
 
 No_Animal_Temp_i2 <- data.frame(round(orchaRd::i2_ml(No_Animal_Temp), 2))
 No_Animal_Temp_aic <- fitstats(No_Animal_Temp)
 
 # No Measurement Random Effect
-run <- FALSE
-system.time( # 1ish minutes
+run <- TRUE
+system.time(
   if(run){
     No_Measurement_Temp <- metafor::rma.mv(Effect_Size_Type_Adjusted ~ 1, V = Variance_Type_Adjusted, test = "t", dfs = "contain",
                                            random = list(~1|phylo, ~1|Study_ID, ~1|obs, 
                                                          ~1|Scientific_Name, ~1|Shared_Animal_Number), 
                                            R = list(phylo=Temp_A_cor), data = Temp_Subset_Data, method = "ML", sparse = TRUE, 
                                            control=list(rel.tol=1e-9))
-    saveRDS(No_Measurement_Temp, "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/No_Measurement_Temp.rds")
+    saveRDS(No_Measurement_Temp, "./No_Measurement_Temp.rds")
   } else {
-    No_Measurement_Temp <- readRDS("./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/No_Measurement_Temp.rds")})
+    No_Measurement_Temp <- readRDS("./No_Measurement_Temp.rds")})
 
 No_Measurement_Temp_i2 <- data.frame(round(orchaRd::i2_ml(No_Measurement_Temp), 2))
 No_Measurement_Temp_aic <- fitstats(No_Measurement_Temp)
 
 # No Scientific Name or Shared Animal Number Random Effects
-run <- FALSE
-system.time( # 1ish minutes
+run <- TRUE
+system.time(
   if(run){
     No_Species_Animal_Temp <- metafor::rma.mv(Effect_Size_Type_Adjusted ~ 1, V = Variance_Type_Adjusted, test = "t", dfs = "contain",
                                               random = list(~1|phylo, ~1|Study_ID, ~1|obs, 
                                                             ~1|Measurement), 
                                               R = list(phylo=Temp_A_cor), data = Temp_Subset_Data, method = "ML", sparse = TRUE, 
                                               control=list(rel.tol=1e-9))
-    saveRDS(No_Species_Animal_Temp, "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/No_Species_Animal_Temp.rds")
+    saveRDS(No_Species_Animal_Temp, "./No_Species_Animal_Temp.rds")
   } else {
-    No_Species_Animal_Temp <- readRDS("./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/No_Species_Animal_Temp.rds")})
+    No_Species_Animal_Temp <- readRDS("./No_Species_Animal_Temp.rds")})
 
 No_Species_Animal_Temp_i2 <- data.frame(round(orchaRd::i2_ml(No_Species_Animal_Temp), 2))
 No_Species_Animal_Temp_aic <- fitstats(No_Species_Animal_Temp)
 
 # No Scientific Name or Measurement Random Effects
-run <- FALSE
-system.time( # 1ish minutes
+run <- TRUE
+system.time(
   if(run){
     No_Species_Measurement_Temp <- metafor::rma.mv(Effect_Size_Type_Adjusted ~ 1, V = Variance_Type_Adjusted, test = "t", dfs = "contain",
                                                    random = list(~1|phylo, ~1|Study_ID, ~1|obs, 
                                                                  ~1|Shared_Animal_Number), 
                                                    R = list(phylo=Temp_A_cor), data = Temp_Subset_Data, method = "ML", sparse = TRUE, 
                                                    control=list(rel.tol=1e-9))
-    saveRDS(No_Species_Measurement_Temp, "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/No_Species_Measurement_Temp.rds")
+    saveRDS(No_Species_Measurement_Temp, "./No_Species_Measurement_Temp.rds")
   } else {
-    No_Species_Measurement_Temp <- readRDS("./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/No_Species_Measurement_Temp.rds")})
+    No_Species_Measurement_Temp <- readRDS("./No_Species_Measurement_Temp.rds")})
 
 No_Species_Measurement_Temp_i2 <- data.frame(round(orchaRd::i2_ml(No_Species_Measurement_Temp), 2))
 No_Species_Measurement_Temp_aic <- fitstats(No_Species_Measurement_Temp)
 
 # No Shared Animal Number or Measurement Random Effects
-run <- FALSE
-system.time( # 1ish minutes
+run <- TRUE
+system.time(
   if(run){
     No_Animal_Measurement_Temp <- metafor::rma.mv(Effect_Size_Type_Adjusted ~ 1, V = Variance_Type_Adjusted, test = "t", dfs = "contain",
                                                   random = list(~1|phylo, ~1|Study_ID, ~1|obs, 
                                                                 ~1|Scientific_Name), 
                                                   R = list(phylo=Temp_A_cor), data = Temp_Subset_Data, method = "ML", sparse = TRUE, 
                                                   control=list(rel.tol=1e-9))
-    saveRDS(No_Animal_Measurement_Temp, "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/No_Animal_Measurement_Temp.rds")
+    saveRDS(No_Animal_Measurement_Temp, "./No_Animal_Measurement_Temp.rds")
   } else {
-    No_Animal_Measurement_Temp <- readRDS("./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/No_Animal_Measurement_Temp.rds")})
+    No_Animal_Measurement_Temp <- readRDS("./No_Animal_Measurement_Temp.rds")})
 
 No_Animal_Measurement_Temp_i2 <- data.frame(round(orchaRd::i2_ml(No_Animal_Measurement_Temp), 2))
 No_Animal_Measurement_Temp_aic <- fitstats(No_Animal_Measurement_Temp)
 
 # The Base Model
-run <- FALSE
-system.time( # 1ish minutes
+run <- TRUE
+system.time(
   if(run){
     Base_Temp <- metafor::rma.mv(Effect_Size_Type_Adjusted ~ 1, V = Variance_Type_Adjusted, test = "t", dfs = "contain",
                                  random = list(~1|phylo, ~1|Study_ID, ~1|obs), 
                                  R = list(phylo=Temp_A_cor), data = Temp_Subset_Data, method = "ML", sparse = TRUE, 
                                  control=list(rel.tol=1e-9))
-    saveRDS(Base_Temp, "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/Base_Temp.rds")
+    saveRDS(Base_Temp, "./Base_Temp.rds")
   } else {
-    Base_Temp <- readRDS("./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/Base_Temp.rds")})
+    Base_Temp <- readRDS("./Base_Temp.rds")})
 
 Base_Temp_i2 <- data.frame(round(orchaRd::i2_ml(Base_Temp), 2))
 Base_Temp_aic <- fitstats(Base_Temp)
@@ -366,128 +366,128 @@ Sal_A_cor <- Sal_A_cor[c(Sal_Species$phylo), c(Sal_Species$phylo)]
 Sal_A_cor <- as.matrix(Sal_A_cor)
 
 # All Possible Random Effects
-run <- FALSE
-system.time( # 1ish minutes
+run <- TRUE
+system.time(
   if(run){
     All_Sal <- metafor::rma.mv(Effect_Size_Type_Adjusted ~ 1, V = Variance_Type_Adjusted, test = "t", dfs = "contain",
                                random = list(~1|phylo, ~1|Study_ID, ~1|obs, 
                                              ~1|Scientific_Name, ~1|Shared_Animal_Number, ~1|Measurement), 
                                R = list(phylo=Sal_A_cor), data = Sal_Subset_Data, method = "ML", sparse = TRUE, 
                                control=list(rel.tol=1e-9))
-    saveRDS(All_Sal, "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/All_Sal.rds")
+    saveRDS(All_Sal, "./All_Sal.rds")
   } else {
-    All_Sal <- readRDS("./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/All_Sal.rds")})
+    All_Sal <- readRDS("./All_Sal.rds")})
 
 All_Sal_i2 <- data.frame(round(orchaRd::i2_ml(All_Sal), 2))
 All_Sal_aic <- fitstats(All_Sal)
 
 # No Scientific Name Random Effect
-run <- FALSE
-system.time( # 1ish minutes
+run <- TRUE
+system.time(
   if(run){
     No_Species_Sal <- metafor::rma.mv(Effect_Size_Type_Adjusted ~ 1, V = Variance_Type_Adjusted, test = "t", dfs = "contain",
                                       random = list(~1|phylo, ~1|Study_ID, ~1|obs, 
                                                     ~1|Shared_Animal_Number, ~1|Measurement), 
                                       R = list(phylo=Sal_A_cor), data = Sal_Subset_Data, method = "ML", sparse = TRUE, 
                                       control=list(rel.tol=1e-9))
-    saveRDS(No_Species_Sal, "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/No_Species_Sal.rds")
+    saveRDS(No_Species_Sal, "./No_Species_Sal.rds")
   } else {
-    No_Species_Sal <- readRDS("./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/No_Species_Sal.rds")})
+    No_Species_Sal <- readRDS("./No_Species_Sal.rds")})
 
 No_Species_Sal_i2 <- data.frame(round(orchaRd::i2_ml(No_Species_Sal), 2))
 No_Species_Sal_aic <- fitstats(No_Species_Sal)
 
 # No Shared Animal Number Random Effect
-run <- FALSE
-system.time( # 1ish minutes
+run <- TRUE
+system.time(
   if(run){
     No_Animal_Sal <- metafor::rma.mv(Effect_Size_Type_Adjusted ~ 1, V = Variance_Type_Adjusted, test = "t", dfs = "contain",
                                       random = list(~1|phylo, ~1|Study_ID, ~1|obs, 
                                                     ~1|Scientific_Name, ~1|Measurement), 
                                       R = list(phylo=Sal_A_cor), data = Sal_Subset_Data, method = "ML", sparse = TRUE, 
                                       control=list(rel.tol=1e-9))
-    saveRDS(No_Animal_Sal, "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/No_Animal_Sal.rds")
+    saveRDS(No_Animal_Sal, "./No_Animal_Sal.rds")
   } else {
-    No_Animal_Sal <- readRDS("./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/No_Animal_Sal.rds")})
+    No_Animal_Sal <- readRDS("./No_Animal_Sal.rds")})
 
 No_Animal_Sal_i2 <- data.frame(round(orchaRd::i2_ml(No_Animal_Sal), 2))
 No_Animal_Sal_aic <- fitstats(No_Animal_Sal)
 
 # No Measurement Random Effect
-run <- FALSE
-system.time( # 1ish minutes
+run <- TRUE
+system.time(
   if(run){
     No_Measurement_Sal <- metafor::rma.mv(Effect_Size_Type_Adjusted ~ 1, V = Variance_Type_Adjusted, test = "t", dfs = "contain",
                                           random = list(~1|phylo, ~1|Study_ID, ~1|obs, 
                                                         ~1|Scientific_Name, ~1|Shared_Animal_Number), 
                                           R = list(phylo=Sal_A_cor), data = Sal_Subset_Data, method = "ML", sparse = TRUE, 
                                           control=list(rel.tol=1e-9))
-    saveRDS(No_Measurement_Sal, "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/No_Measurement_Sal.rds")
+    saveRDS(No_Measurement_Sal, "./No_Measurement_Sal.rds")
   } else {
-    No_Measurement_Sal <- readRDS("./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/No_Measurement_Sal.rds")})
+    No_Measurement_Sal <- readRDS("./No_Measurement_Sal.rds")})
 
 No_Measurement_Sal_i2 <- data.frame(round(orchaRd::i2_ml(No_Measurement_Sal), 2))
 No_Measurement_Sal_aic <- fitstats(No_Measurement_Sal)
 
 # No Scientific Name or Shared Animal Number Random Effects
-run <- FALSE
-system.time( # 1ish minutes
+run <- TRUE
+system.time(
   if(run){
     No_Species_Animal_Sal <- metafor::rma.mv(Effect_Size_Type_Adjusted ~ 1, V = Variance_Type_Adjusted, test = "t", dfs = "contain",
                                              random = list(~1|phylo, ~1|Study_ID, ~1|obs, 
                                                            ~1|Measurement), 
                                              R = list(phylo=Sal_A_cor), data = Sal_Subset_Data, method = "ML", sparse = TRUE, 
                                              control=list(rel.tol=1e-9))
-    saveRDS(No_Species_Animal_Sal, "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/No_Species_Animal_Sal.rds")
+    saveRDS(No_Species_Animal_Sal, "./No_Species_Animal_Sal.rds")
   } else {
-    No_Species_Animal_Sal <- readRDS("./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/No_Species_Animal_Sal.rds")})
+    No_Species_Animal_Sal <- readRDS("./No_Species_Animal_Sal.rds")})
 
 No_Species_Animal_Sal_i2 <- data.frame(round(orchaRd::i2_ml(No_Species_Animal_Sal), 2))
 No_Species_Animal_Sal_aic <- fitstats(No_Species_Animal_Sal)
 
 # No Scientific Name or Measurement Random Effects
-run <- FALSE
-system.time( # 1ish minutes
+run <- TRUE
+system.time(
   if(run){
     No_Species_Measurement_Sal <- metafor::rma.mv(Effect_Size_Type_Adjusted ~ 1, V = Variance_Type_Adjusted, test = "t", dfs = "contain",
                                                   random = list(~1|phylo, ~1|Study_ID, ~1|obs, 
                                                                 ~1|Shared_Animal_Number), 
                                                   R = list(phylo=Sal_A_cor), data = Sal_Subset_Data, method = "ML", sparse = TRUE, 
                                                   control=list(rel.tol=1e-9))
-    saveRDS(No_Species_Measurement_Sal, "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/No_Species_Measurement_Sal.rds")
+    saveRDS(No_Species_Measurement_Sal, "./No_Species_Measurement_Sal.rds")
   } else {
-    No_Species_Measurement_Sal <- readRDS("./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/No_Species_Measurement_Sal.rds")})
+    No_Species_Measurement_Sal <- readRDS("./No_Species_Measurement_Sal.rds")})
 
 No_Species_Measurement_Sal_i2 <- data.frame(round(orchaRd::i2_ml(No_Species_Measurement_Sal), 2))
 No_Species_Measurement_Sal_aic <- fitstats(No_Species_Measurement_Sal)
 
 # No Shared Animal Number or Measurement Random Effects
-run <- FALSE
-system.time( # 1ish minutes
+run <- TRUE
+system.time(
   if(run){
     No_Animal_Measurement_Sal <- metafor::rma.mv(Effect_Size_Type_Adjusted ~ 1, V = Variance_Type_Adjusted, test = "t", dfs = "contain",
                                                  random = list(~1|phylo, ~1|Study_ID, ~1|obs, 
                                                                ~1|Scientific_Name), 
                                                  R = list(phylo=Sal_A_cor), data = Sal_Subset_Data, method = "ML", sparse = TRUE, 
                                                  control=list(rel.tol=1e-9))
-    saveRDS(No_Animal_Measurement_Sal, "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/No_Animal_Measurement_Sal.rds")
+    saveRDS(No_Animal_Measurement_Sal, "./No_Animal_Measurement_Sal.rds")
   } else {
-    No_Animal_Measurement_Sal <- readRDS("./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/No_Animal_Measurement_Sal.rds")})
+    No_Animal_Measurement_Sal <- readRDS("./No_Animal_Measurement_Sal.rds")})
 
 No_Animal_Measurement_Sal_i2 <- data.frame(round(orchaRd::i2_ml(No_Animal_Measurement_Sal), 2))
 No_Animal_Measurement_Sal_aic <- fitstats(No_Animal_Measurement_Sal)
 
 # The Base Model
-run <- FALSE
-system.time( # 1ish minutes
+run <- TRUE
+system.time(
   if(run){
     Base_Sal <- metafor::rma.mv(Effect_Size_Type_Adjusted ~ 1, V = Variance_Type_Adjusted, test = "t", dfs = "contain",
                                  random = list(~1|phylo, ~1|Study_ID, ~1|obs), 
                                  R = list(phylo=Sal_A_cor), data = Sal_Subset_Data, method = "ML", sparse = TRUE, 
                                  control=list(rel.tol=1e-9))
-    saveRDS(Base_Sal, "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/Base_Sal.rds")
+    saveRDS(Base_Sal, "./Base_Sal.rds")
   } else {
-    Base_Sal <- readRDS("./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/Base_Sal.rds")})
+    Base_Sal <- readRDS("./Base_Sal.rds")})
 
 Base_Sal_i2 <- data.frame(round(orchaRd::i2_ml(Base_Sal), 2))
 Base_Sal_aic <- fitstats(Base_Sal)
@@ -529,7 +529,7 @@ Heterogeneity_Sal <- data.frame("Random Effects" = c("Animal", "Measurement", "O
 ##### MCMC Diagnostic - Overall Data Set #####
 
 # Overall BRMS Model
-overall <- readRDS("./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/overall_model.rds")
+overall <- readRDS("./overall_model.rds")
 
 predict(overall)
 
@@ -559,7 +559,7 @@ Temp_A <- as.matrix(Temp_A)
 # Temperature BRMS Model
 priors <-  prior(student_t(3, 0, 20), class = "sd")
 
-system.time(  # 2.5ish minutes
+system.time(
   temp <- brms::brm(Effect_Size_Type_Adjusted | se(sqrt(Variance_Type_Adjusted)) 
                     ~ 1 + (1|gr(phylo, cov = A)) + (1|Study_ID) + (1|obs),
                     data = Temp_Subset_Data,
@@ -572,8 +572,8 @@ system.time(  # 2.5ish minutes
                     thin = 5,
                     prior = priors,
                     control = list(adapt_delta = 0.99, max_treedepth = 15),
-                    file = "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/temp_model",
-                    file_refit = "on_change"))
+                    file = "./temp_model",
+                    file_refit = "always"))
 
 # Bayesian Model/Data Output
 
@@ -590,7 +590,7 @@ auto_plots_temp <- bayesplot::mcmc_acf(b_temp, lags = 10) +
                    theme(axis.title.y = element_text(size = 11, colour = "black", margin = margin(r = 10))) +
                    theme(axis.title.x = element_text(size = 11, colour = "black", margin = margin(t = 5)))
 
-auto_plots_temp # 400x800
+auto_plots_temp
 
 ##### MCMC Diagnostics - Salinity Data
 
@@ -601,7 +601,7 @@ Sal_A <- as.matrix(Sal_A)
 # Salinity BRMS Model
 priors <-  prior(student_t(3, 0, 20), class = "sd")
 
-system.time(  # 2.5ish minutes
+system.time(
   sal <- brms::brm(Effect_Size_Type_Adjusted | se(sqrt(Variance_Type_Adjusted)) 
                    ~ 1 + (1|gr(phylo, cov = A)) + (1|Study_ID) + (1|obs),
                    data = Sal_Subset_Data,
@@ -614,7 +614,7 @@ system.time(  # 2.5ish minutes
                    thin = 5,
                    prior = priors,
                    control = list(adapt_delta = 0.99, max_treedepth = 15),
-                   file = "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/sal_model",
+                   file = "./sal_model",
                    file_refit = "always"))
 
 # Bayesian Model/Data Output
@@ -632,4 +632,4 @@ auto_plots_sal <- bayesplot::mcmc_acf(b_sal, lags = 10) +
                   theme(axis.title.y = element_text(size = 11, colour = "black", margin = margin(r = 10))) +
                   theme(axis.title.x = element_text(size = 11, colour = "black", margin = margin(t = 5)))
 
-auto_plots_sal # 400x800
+auto_plots_sal
