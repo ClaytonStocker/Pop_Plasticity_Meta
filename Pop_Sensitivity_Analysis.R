@@ -9,10 +9,10 @@ pacman::p_load(tidyverse, readxl, gtsummary, dplyr,
                flextable, phytools, MCMCglmm, metaAidR, orchaRd, 
                robumeta, ggpmisc, ggpubr)
 
-source("./4_Laboratory_Plasticity/3_Data_Analysis/1_R_code/func.R")
+source("./func.R")
 
 # Importing Data Set
-data <- read.csv("./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/data/Final_Data.csv")
+data <- read.csv("./Final_Data.csv")
 data$obs <- 1:nrow(data)
 data$Scientific_Name <- sub(" ", "_", data$Scientific_Name)
 data$phylo <- data$Scientific_Name
@@ -28,7 +28,7 @@ Sal_Subset_Data$obs <- 1:nrow(Sal_Subset_Data)
 Sal_Species <- Sal_Subset_Data %>% select("phylo") %>% unique()
 
 # Phylogenetic covariance matrix
-tree <- ape::read.tree("./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/phylogeny/tree")
+tree <- ape::read.tree("./tree")
 phy <- ape::compute.brlen(tree, method = "Grafen", power = 1)
 A <- ape::vcv.phylo(phy)
 row.names(A) <- colnames(A) <- row.names(A)
@@ -54,7 +54,7 @@ priors <-  prior(student_t(3, 0, 20), class = "sd")
 
 ##### Publication Bias - Overall #####
 # Importing Model
-Model <- readRDS("./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/overall_model.rds")
+Model <- readRDS("./overall_model.rds")
 
 b_overall <- as_draws_df(Model, variable = "b_Intercept")
 b_overall <- data.frame(b_overall$b_Intercept)
@@ -114,56 +114,56 @@ Publication_Graph <- ggplot(Graph_Data, aes(x = Publication_Year, y = abs(Effect
                      aes(label = paste(after_stat(eq.label), after_stat(rr.label), sep = "~~~")), 
                      parse = TRUE)
 
-Publication_Graph #(750x500)
+Publication_Graph
 
 # Time-lag Bias 
-run <- FALSE
-system.time( #  5ish minutes
+run <- TRUE
+system.time(
   if(run){
     Year_Precision_rma <- metafor::rma.mv(abs(Effect_Size_Adjusted), V = Variance_Adjusted, test = "t", dfs = "contain",
                                           mods = ~ Publication_Year_Z + Precision - 1,
                                           random = list(~1|phylo, ~1|Study_ID, ~1|Measurement, ~1|obs), 
                                           R = list(phylo=A_cor), data = data, method = "REML", sparse = TRUE, 
                                           control=list(rel.tol=1e-9))
-    saveRDS(Year_Precision_rma, "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/Year_Precision_rma")
+    saveRDS(Year_Precision_rma, "./Year_Precision_rma")
   } else {
-    Year_Precision_rma <- readRDS("./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/Year_Precision_rma")})
+    Year_Precision_rma <- readRDS("./Year_Precision_rma")})
 
 Year_Precision_rma_Estimates <- data.frame(estimate = Year_Precision_rma$b, ci.lb = Year_Precision_rma$ci.lb, 
                                     ci.ub = Year_Precision_rma$ci.ub)
 Year_Precision_rma_i2 <- data.frame(round(orchaRd::i2_ml(Year_Precision_rma), 2))
 
 # cooks Distance (metafor)
-run <- FALSE
-system.time( #  5ish minutes
+run <- TRUE
+system.time(
   if(run){
     Cooks_Model <- metafor::rma.mv(Effect_Size_Adjusted, V = Variance_Adjusted, test = "t", dfs = "contain",
                                    random = list(~1|phylo, ~1|Study_ID, ~1|Measurement, ~1|obs), 
                                    R = list(phylo=A_cor), data = data, method = "REML", sparse = TRUE, 
                                    control=list(rel.tol=1e-9))
-    saveRDS(Cooks_Model, "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/Cooks_model")
+    saveRDS(Cooks_Model, "./Cooks_model")
   } else {
-    Cooks_Model <- readRDS("./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/Cooks_model")})
+    Cooks_Model <- readRDS("./Cooks_model")})
 
 Cooks_Model_Estimates <- data.frame(estimate = Cooks_Model$b, ci.lb = Cooks_Model$ci.lb, 
                                     ci.ub = Cooks_Model$ci.ub)
 Cooks_Model_i2 <- data.frame(round(orchaRd::i2_ml(Cooks_Model), 2))
 
-#run <- FALSE
-#system.time( # hasn't been ran yet
-#  if(run){
-#    Overall_Cooks <- cooks.distance(Cooks_Model)
-#    saveRDS(Overall_Cooks, "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/Overall_Cooks")
-#  } else {
-#    Overall_Cooks <- readRDS("./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/Overall_Cooks")})
+run <- TRUE
+system.time(
+  if(run){
+    Overall_Cooks <- cooks.distance(Cooks_Model)
+    saveRDS(Overall_Cooks, "./Overall_Cooks")
+  } else {
+    Overall_Cooks <- readRDS("./Overall_Cooks")})
 
-#dev.off()
-#Cooks_Plot <- plot(Overall_Cooks, type = "o", pch = 21, xlab = "Observed Outcome", 
-#                   ylab = "Cook's Distance", bg = "#183357")
-#box(lwd = 2)
+dev.off()
+Cooks_Plot <- plot(Overall_Cooks, type = "o", pch = 21, xlab = "Observed Outcome", 
+                   ylab = "Cook's Distance", bg = "#183357")
+box(lwd = 2)
 
 # Untransformed Model
-system.time(  # 35ish minutes
+system.time(
   Untransformed <- brms::brm(Effect_Size | se(sqrt(Variance)) 
                        ~ 1 + (1|gr(phylo, cov = A)) + (1|Study_ID) + (1|Measurement) + (1|obs),
                        data = data,
@@ -176,8 +176,8 @@ system.time(  # 35ish minutes
                        thin = 5,
                        prior = priors,
                        control = list(adapt_delta = 0.99, max_treedepth = 15),
-                       file = "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/untransformed_model",
-                       file_refit = "on_change"))
+                       file = "./untransformed_model",
+                       file_refit = "always"))
 
 b_untransformed <- as_draws_df(Untransformed, variable = "b_Intercept")
 b_untransformed <- data.frame(b_untransformed$b_Intercept)
@@ -201,7 +201,7 @@ overall_i2_untransformed <- i2(sd_untransformed, data$Variance)
 
 ##### Publication Bias - Temperature #####
 # Importing Model
-Model_Temp <- readRDS("./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/temp_model.rds")
+Model_Temp <- readRDS("./temp_model.rds")
 
 b_overall_temp <- as_draws_df(Model_Temp, variable = "b_Intercept")
 b_overall_temp <- data.frame(b_overall_temp$b_Intercept)
@@ -263,56 +263,56 @@ Publication_Graph_Temp <- ggplot(Graph_Data_Temp, aes(x = Publication_Year, y = 
                           #coord_cartesian(xlim = c(0, 25), 
                           #                ylim = c(-5, 5))
 
-Publication_Graph_Temp #(750x500)
+Publication_Graph_Temp
 
 # Time-lag Bias
-run <- FALSE
-system.time( #  5ish minutes
+run <- TRUE
+system.time(
   if(run){
     Year_Precision_Temp_rma <- metafor::rma.mv(abs(Effect_Size_Type_Adjusted), V = Variance_Type_Adjusted, test = "t", dfs = "contain",
                                                mods = ~ Publication_Year_Z + Precision - 1,
                                                random = list(~1|phylo, ~1|Study_ID, ~1|obs), 
                                                R = list(phylo=Temp_A_cor), data = Temp_Subset_Data, method = "REML", sparse = TRUE, 
                                                control=list(rel.tol=1e-9))
-    saveRDS(Year_Precision_Temp_rma, "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/Year_Precision_Temp_rma")
+    saveRDS(Year_Precision_Temp_rma, "./Year_Precision_Temp_rma")
   } else {
-    Year_Precision_Temp_rma <- readRDS("./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/Year_Precision_Temp_rma")})
+    Year_Precision_Temp_rma <- readRDS("./Year_Precision_Temp_rma")})
 
 Year_Precision_Temp_rma_Estimates <- data.frame(estimate = Year_Precision_Temp_rma$b, ci.lb = Year_Precision_Temp_rma$ci.lb, 
                                            ci.ub = Year_Precision_Temp_rma$ci.ub)
 Year_Precision_Temp_rma_i2 <- data.frame(round(orchaRd::i2_ml(Year_Precision_Temp_rma), 2))
 
 # Cooks Distance (Metafor)
-run <- FALSE
-system.time( #  1ish minutes
+run <- TRUE
+system.time(
   if(run){
     Cooks_Model_Temp <- metafor::rma.mv(Effect_Size_Type_Adjusted, V = Variance_Type_Adjusted, test = "t", dfs = "contain",
                                         random = list(~1|phylo, ~1|Study_ID, ~1|obs), 
                                         R = list(phylo=Temp_A_cor), data = Temp_Subset_Data, method = "REML", sparse = TRUE, 
                                         control=list(rel.tol=1e-9))
-    saveRDS(Cooks_Model_Temp, "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/Cooks_model_temp")
+    saveRDS(Cooks_Model_Temp, "./Cooks_model_temp")
   } else {
-    Cooks_Model_Temp <- readRDS("./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/Cooks_model_temp")})
+    Cooks_Model_Temp <- readRDS("./Cooks_model_temp")})
 
 Cooks_Model_Estimates_Temp <- data.frame(estimate = Cooks_Model_Temp$b, ci.lb = Cooks_Model_Temp$ci.lb, 
                                          ci.ub = Cooks_Model_Temp$ci.ub)
 Cooks_Model_i2_Temp <- data.frame(round(orchaRd::i2_ml(Cooks_Model_Temp), 2))
 
-#run <- FALSE
-#system.time( # hasn't been ran yet
-#  if(run){
-#    Overall_Cooks_Temp <- cooks.distance(Cooks_Model_Temp)
-#    saveRDS(Overall_Cooks_Temp, "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/Overall_Cooks_Temp")
-#  } else {
-#    Overall_Cooks_Temp <- readRDS("./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/Overall_Cooks_Temp")})
+run <- TRUE
+system.time(
+  if(run){
+    Overall_Cooks_Temp <- cooks.distance(Cooks_Model_Temp)
+    saveRDS(Overall_Cooks_Temp, "./Overall_Cooks_Temp")
+  } else {
+    Overall_Cooks_Temp <- readRDS("./Overall_Cooks_Temp")})
 
-#dev.off()
-#Cooks_Plot_Temp <- plot(Overall_Cooks_Temp, type = "o", pch = 21, xlab = "Observed Outcome", 
-#                   ylab = "Cook's Distance", bg = "#183357")
-#box(lwd = 2)
+dev.off()
+Cooks_Plot_Temp <- plot(Overall_Cooks_Temp, type = "o", pch = 21, xlab = "Observed Outcome", 
+                   ylab = "Cook's Distance", bg = "#183357")
+box(lwd = 2)
 
 # Untransformed Model
-system.time(  # 3ish minutes
+system.time(
   Untransformed_Temp <- brms::brm(Effect_Size_Type | se(sqrt(Variance_Type)) 
                                   ~ 1 + (1|gr(phylo, cov = A)) + (1|Study_ID) + (1|obs),
                                   data = Temp_Subset_Data,
@@ -325,8 +325,8 @@ system.time(  # 3ish minutes
                                   thin = 5,
                                   prior = priors,
                                   control = list(adapt_delta = 0.99, max_treedepth = 15),
-                                  file = "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/untransformed_temp_model",
-                                  file_refit = "on_change"))
+                                  file = "./untransformed_temp_model",
+                                  file_refit = "always"))
 
 b_untransformed_temp <- as_draws_df(Untransformed_Temp, variable = "b_Intercept")
 b_untransformed_temp <- data.frame(b_untransformed_temp$b_Intercept)
@@ -349,7 +349,7 @@ overall_i2_untransformed_temp <- i2(sd_untransformed_temp, Temp_Subset_Data$Vari
 
 ##### Publication Bias - Salinity #####
 # Importing Model
-Model_Sal <- readRDS("./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/sal_model.rds")
+Model_Sal <- readRDS("./sal_model.rds")
 
 b_overall_sal <- as_draws_df(Model_Sal, variable = "b_Intercept")
 b_overall_sal <- data.frame(b_overall_sal$b_Intercept)
@@ -411,56 +411,56 @@ Publication_Graph_Sal <- ggplot(Graph_Data_Sal, aes(x = Publication_Year, y = ab
                          #coord_cartesian(xlim = c(0, 25), 
                          #                ylim = c(-5, 5))
 
-Publication_Graph_Sal #(750x500)
+Publication_Graph_Sal
 
 # Time-lag Bias
-run <- FALSE
-system.time( #  5ish minutes
+run <- TRUE
+system.time(
   if(run){
     Year_Precision_Sal_rma <- metafor::rma.mv(abs(Effect_Size_Type_Adjusted), V = Variance_Type_Adjusted, test = "t", dfs = "contain",
                                               mods = ~ Publication_Year_Z + Precision - 1,
                                               random = list(~1|phylo, ~1|Study_ID, ~1|obs), 
                                               R = list(phylo=Sal_A_cor), data = Sal_Subset_Data, method = "REML", sparse = TRUE, 
                                               control=list(rel.tol=1e-9))
-    saveRDS(Year_Precision_Sal_rma, "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/Year_Precision_Sal_rma")
+    saveRDS(Year_Precision_Sal_rma, "./Year_Precision_Sal_rma")
   } else {
-    Year_Precision_Sal_rma <- readRDS("./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/Year_Precision_Sal_rma")})
+    Year_Precision_Sal_rma <- readRDS("./Year_Precision_Sal_rma")})
 
 Year_Precision_Sal_rma_Estimates <- data.frame(estimate = Year_Precision_Sal_rma$b, ci.lb = Year_Precision_Sal_rma$ci.lb, 
                                                 ci.ub = Year_Precision_Sal_rma$ci.ub)
 Year_Precision_Sal_rma_i2 <- data.frame(round(orchaRd::i2_ml(Year_Precision_Sal_rma), 2))
 
 # Cooks Distance (Metafor)
-run <- FALSE
-system.time( #  1ish minutes
+run <- TRUE
+system.time(
   if(run){
     Cooks_Model_Sal <- metafor::rma.mv(Effect_Size_Type_Adjusted, V = Variance_Type_Adjusted, test = "t", dfs = "contain",
                                         random = list(~1|phylo, ~1|Study_ID, ~1|obs), 
                                         R = list(phylo=Sal_A_cor), data = Sal_Subset_Data, method = "REML", sparse = TRUE, 
                                         control=list(rel.tol=1e-9))
-    saveRDS(Cooks_Model_Sal, "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/Cooks_model_sal")
+    saveRDS(Cooks_Model_Sal, "./Cooks_model_sal")
   } else {
-    Cooks_Model_Sal <- readRDS("./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/Cooks_model_sal")})
+    Cooks_Model_Sal <- readRDS("./Cooks_model_sal")})
 
 Cooks_Model_Estimates_Sal <- data.frame(estimate = Cooks_Model_Sal$b, ci.lb = Cooks_Model_Sal$ci.lb, 
                                          ci.ub = Cooks_Model_Sal$ci.ub)
 Cooks_Model_i2_Sal <- data.frame(round(orchaRd::i2_ml(Cooks_Model_Sal), 2))
 
-#run <- FALSE
-#system.time( # hasn't been ran yet
-#  if(run){
-#    Overall_Cooks_Sal <- cooks.distance(Cooks_Model_Sal)
-#    saveRDS(Overall_Cooks_Sal, "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/Overall_Cooks_Sal")
-#  } else {
-#    Overall_Cooks_Sal <- readRDS("./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/Overall_Cooks_Sal")})
+run <- TRUE
+system.time(
+  if(run){
+    Overall_Cooks_Sal <- cooks.distance(Cooks_Model_Sal)
+    saveRDS(Overall_Cooks_Sal, "./Overall_Cooks_Sal")
+  } else {
+    Overall_Cooks_Sal <- readRDS("./Overall_Cooks_Sal")})
 
-#dev.off()
-#Cooks_Plot_Sal <- plot(Overall_Cooks_Sal, type = "o", pch = 21, xlab = "Observed Outcome", 
-#                   ylab = "Cook's Distance", bg = "#183357")
-#box(lwd = 2)
+dev.off()
+Cooks_Plot_Sal <- plot(Overall_Cooks_Sal, type = "o", pch = 21, xlab = "Observed Outcome", 
+                   ylab = "Cook's Distance", bg = "#183357")
+box(lwd = 2)
 
 # Untransformed Model
-system.time(  # 3ish minutes
+system.time(
   Untransformed_Sal <- brms::brm(Effect_Size_Type | se(sqrt(Variance_Type)) 
                                  ~ 1 + (1|gr(phylo, cov = A)) + (1|Study_ID) + (1|obs),
                                  data = Sal_Subset_Data,
@@ -473,8 +473,8 @@ system.time(  # 3ish minutes
                                  thin = 5,
                                  prior = priors,
                                  control = list(adapt_delta = 0.99, max_treedepth = 15),
-                                 file = "./4_Laboratory_Plasticity/3_Data_Analysis/2_Output/models/untransformed_sal_model",
-                                 file_refit = "on_change"))
+                                 file = "./untransformed_sal_model",
+                                 file_refit = "always"))
 
 b_untransformed_sal <- as_draws_df(Untransformed_Sal, variable = "b_Intercept")
 b_untransformed_sal <- data.frame(b_untransformed_sal$b_Intercept)
